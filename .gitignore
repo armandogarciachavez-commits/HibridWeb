@@ -7,7 +7,7 @@ yarn-error.log
 .DS_Store
 
 # Directorios de compilación (si hay en el root)
-dist/
+
 build/
 
 # Entorno
