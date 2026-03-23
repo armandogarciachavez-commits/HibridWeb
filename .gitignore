@@ -1,0 +1,28 @@
+# Dependencias y logs
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Mac
+.DS_Store
+
+# Directorios de compilación (si hay en el root)
+dist/
+build/
+
+# Entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDEs
+.idea/
+.vscode/
+
+# Ignorar archivos comprimidos de backups
+*.zip
+
+# Archivos propios del AI
+.claude/
