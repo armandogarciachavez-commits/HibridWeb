@@ -79,3 +79,4 @@ Antes de subir las PWAs, es necesario compilarlas (esto lo harás desde tu compu
 
 ---
 ✅ **¡Listo!** Ahora tu ecosistema completo (Página alojada nativa, Backend asegurado por dominio independiente y dos paneles PWA funcionales) estará productivo de extremo a extremo.
+# HibridWeb
