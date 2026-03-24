@@ -28,7 +28,9 @@ class User extends Authenticatable
     protected function photoUrl(): Attribute
     {
         return Attribute::make(
-            get: fn () => $this->photo ? Storage::url($this->photo) : null
+            get: fn () => $this->photo
+                ? rtrim(config('app.url'), '/') . '/storage/' . $this->photo
+                : null
         );
     }
 
