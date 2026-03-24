@@ -36,7 +36,7 @@ class AdminController extends Controller
             'emergency_contact_name' => 'required|string|max:255',
             'emergency_contact_phone' => 'required|string|max:255',
             'plan_type' => 'nullable|string',
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'photo' => 'nullable|file|extensions:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $adminId = $request->user()?->id;
@@ -96,7 +96,7 @@ class AdminController extends Controller
             'emergency_contact_name' => 'required|string|max:255',
             'emergency_contact_phone' => 'required|string|max:255',
             'password' => 'nullable|string|min:6', // Optional password update
-            'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
+            'photo' => 'nullable|file|extensions:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $updateData = [
