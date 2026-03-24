@@ -146,6 +146,7 @@ const Schedule = () => {
     if (n.includes('UPPER BURN')) return <Flame size={size} color={color} />;
     if (n.includes('TEST')) return <Target size={size} color={color} />;
     if (n.includes('ATHLETE')) return <Zap size={size} color={color} />;
+    if (n.includes('YOGA')) return <span style={{ fontSize: size, lineHeight: 1 }}>🙏</span>;
     return <Activity size={size} color={color} />;
   };
 
