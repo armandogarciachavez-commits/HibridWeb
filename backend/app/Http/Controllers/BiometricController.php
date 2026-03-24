@@ -78,7 +78,7 @@ class BiometricController extends Controller
     public function getRecentScan()
     {
         $scan = ScanLog::with([
-            'user:id,name,email,role',
+            'user:id,name,email,role,photo',
             'user.memberships',
             'user.reservations' => function($q) {
                 // Return only today's reservations

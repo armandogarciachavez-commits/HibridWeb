@@ -19,9 +19,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['*', 'https://admin.alfahybridtraning.com'],
+    'allowed_origins' => ['https://admin.alfahybridtraning.com'],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => ['#^https://[a-z0-9\-]+\.alfahybridtraning\.com$#'],
 
     'allowed_headers' => ['*'],
 

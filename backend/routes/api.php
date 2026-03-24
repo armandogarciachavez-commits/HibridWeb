@@ -9,8 +9,8 @@ use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\PaymentController;
 
 // ─── Rutas públicas ───────────────────────────────────────────────────────────
-Route::post('/login', [AuthController::class, 'login']);
-Route::post('/register', [AuthController::class, 'register']);
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
+Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::get('/classes', [ReservationController::class, 'getClasses']);
 Route::get('/catalog', fn() => response()->json(\App\Models\GymClass::all()));
 Route::post('/payments/webhook', [PaymentController::class, 'webhook']);

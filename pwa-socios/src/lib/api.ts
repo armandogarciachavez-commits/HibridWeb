@@ -58,12 +58,18 @@ export function clearAuth(): void {
  *   limpia la sesión y recarga la app para redirigir al login.
  */
 export async function apiFetch(path: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers({
+    ...authHeaders(),
+    ...(options.headers as Record<string, string> ?? {}),
+  });
+
+  if (options.body instanceof FormData) {
+    headers.delete('Content-Type');
+  }
+
   const response = await fetch(`${BASE}${path}`, {
     ...options,
-    headers: {
-      ...authHeaders(),
-      ...(options.headers as Record<string, string> ?? {}),
-    },
+    headers,
   });
 
   if (response.status === 401) {

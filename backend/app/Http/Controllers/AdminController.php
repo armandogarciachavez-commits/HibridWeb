@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 
 class AdminController extends Controller
 {
@@ -47,6 +48,7 @@ class AdminController extends Controller
             'phone' => $request->phone,
             'address' => $request->address,
             'password' => Hash::make($request->password),
+            'emergency_contact_name' => $request->emergency_contact_name ?? null,
             'emergency_contact_phone' => $request->emergency_contact_phone ?? null,
             'role' => 'socio',
             'created_by' => $adminId,
@@ -149,17 +151,19 @@ class AdminController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date'
         ]);
 
-        // Desactivar las anteriores
-        \App\Models\Membership::where('user_id', $request->user_id)->update(['is_active' => false]);
+        $membership = DB::transaction(function () use ($request) {
+            // Desactivar las anteriores dentro de la misma transacción
+            \App\Models\Membership::where('user_id', $request->user_id)->update(['is_active' => false]);
 
-        $membership = \App\Models\Membership::create([
-            'user_id'    => $request->user_id,
-            'plan_type'  => $request->plan_type,
-            'start_date' => $request->start_date,
-            'end_date'   => $request->end_date,
-            'is_active'  => true,
-            'created_by' => $request->user()?->id,
-        ]);
+            return \App\Models\Membership::create([
+                'user_id'    => $request->user_id,
+                'plan_type'  => $request->plan_type,
+                'start_date' => $request->start_date,
+                'end_date'   => $request->end_date,
+                'is_active'  => true,
+                'created_by' => $request->user()?->id,
+            ]);
+        });
 
         return response()->json([
             'message' => 'Cobro registrado y membresía activada exitosamente.',

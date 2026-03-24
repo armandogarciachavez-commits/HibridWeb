@@ -95,7 +95,8 @@ const Schedule = () => {
         method: 'POST',
         body: JSON.stringify({ class_session_id: session.id }),
       });
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { /* respuesta sin cuerpo JSON */ }
       if (res.ok) {
         setBookedIds(prev => new Set(prev).add(session.id));
         setBookMsg({ text: '¡Reserva confirmada! Te esperamos en clase.', type: 'success' });
@@ -116,7 +117,8 @@ const Schedule = () => {
     setBookMsg(null);
     try {
       const res  = await apiFetch(`/reservations/cancel/${session.id}`, { method: 'DELETE' });
-      const data = await res.json();
+      let data: any = {};
+      try { data = await res.json(); } catch { /* respuesta sin cuerpo JSON */ }
       if (res.ok) {
         setBookedIds(prev => { const s = new Set(prev); s.delete(session.id); return s; });
         setBookMsg({ text: 'Reserva cancelada correctamente.', type: 'error' });

@@ -54,7 +54,7 @@ const Dashboard = () => {
     const endDate = new Date(activePlan.end_date);
     return endDate >= now && endDate <= next7Days;
   }).map(u => {
-    const activePlan = u.memberships.find((m: any) => m.is_active);
+    const activePlan = u.memberships?.find((m: any) => m.is_active);
     return {
       ...u,
       endDate: new Date(activePlan.end_date)
@@ -128,7 +128,7 @@ const Dashboard = () => {
                 <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', minWidth: '150px' }}>
                   {recentScan && recentScan.user ? (
                     <img 
-                      src={recentScan.user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(recentScan.user.name)}&background=random&color=fff&size=150`} 
+                      src={recentScan.user.photo_url || recentScan.user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(recentScan.user.name)}&background=random&color=fff&size=150`}
                       alt={recentScan.user.name} 
                       style={{ width: '120px', height: '120px', borderRadius: '50%', border: '3px solid #444', objectFit: 'cover' }} 
                     />

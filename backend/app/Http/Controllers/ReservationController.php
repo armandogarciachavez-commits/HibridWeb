@@ -7,6 +7,7 @@ use App\Models\GymClass;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class ReservationController extends Controller
 {
@@ -46,19 +47,7 @@ class ReservationController extends Controller
 
         $session = \App\Models\ClassSession::findOrFail($request->class_session_id);
 
-        // Checar cupo
-        $currentBookings = Reservation::where('class_session_id', $request->class_session_id)->count();
-        
-        if ($currentBookings >= $session->capacity) {
-            return response()->json(['message' => 'La clase está llena'], 400);
-        }
-
-        // Crear reserva (usando Auth::id(), pero por ahora permitimos enviar user_id para facilitar pruebas)
-        $user_id = $request->user_id ?? Auth::id();
-        
-        if (!$user_id) {
-            return response()->json(['message' => 'Usuario no autenticado'], 401);
-        }
+        $user_id = Auth::id();
 
         // VALIDAR MEMBRESÍA ACTIVA
         $user = User::with(['memberships' => function($q) {
@@ -69,20 +58,31 @@ class ReservationController extends Controller
             return response()->json(['message' => 'Tu membresía está inactiva o vencida. Por favor renueva tu plan en el inicio para agendar clases.'], 403);
         }
 
-        // Verificar si ya tiene reservación idéntica
-        $exists = Reservation::where('user_id', $user_id)
-                             ->where('class_session_id', $request->class_session_id)
-                             ->exists();
-                             
-        if ($exists) {
-            return response()->json(['message' => 'Ya tienes reservada esta clase'], 400);
-        }
+        // Usar transacción para evitar race conditions en cupo y duplicados
+        $reservation = DB::transaction(function () use ($request, $session, $user_id) {
+            // Checar cupo dentro de la transacción
+            $currentBookings = Reservation::where('class_session_id', $request->class_session_id)
+                ->lockForUpdate()->count();
 
-        $reservation = Reservation::create([
-            'user_id' => $user_id,
-            'class_session_id' => $request->class_session_id,
-            'status' => 'confirmed'
-        ]);
+            if ($currentBookings >= $session->capacity) {
+                abort(response()->json(['message' => 'La clase está llena'], 400));
+            }
+
+            // Verificar si ya tiene reservación idéntica
+            $exists = Reservation::where('user_id', $user_id)
+                                 ->where('class_session_id', $request->class_session_id)
+                                 ->exists();
+
+            if ($exists) {
+                abort(response()->json(['message' => 'Ya tienes reservada esta clase'], 400));
+            }
+
+            return Reservation::create([
+                'user_id' => $user_id,
+                'class_session_id' => $request->class_session_id,
+                'status' => 'confirmed'
+            ]);
+        });
 
         return response()->json(['message' => 'Reserva confirmada', 'reservation' => $reservation->load('classSession.gymClass')], 201);
     }

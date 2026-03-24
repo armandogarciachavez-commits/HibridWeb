@@ -93,7 +93,10 @@ const Users = () => {
         fetchUsers();
       } else {
         const errorData = await res.json();
-        addToast(`Error al guardar socio: ${errorData.message}`, "error");
+        const errorMsg = errorData.message
+          || Object.values(errorData.errors || {}).flat().join(', ')
+          || 'Error desconocido';
+        addToast(`Error al guardar socio: ${errorMsg}`, "error");
       }
     } catch (error) {
       addToast('Error de conexión con el Backend Laravel.', 'error');
@@ -140,7 +143,7 @@ const Users = () => {
           emergencyName: user.emergency_contact_name || '',
           emergencyPhone: user.emergency_contact_phone || '',
           planType: 'none',
-          photo: user.photo || user.profile_photo_url || ''
+          photo: user.photo_url || user.photo || user.profile_photo_url || ''
       });
       setShowModal(true);
   };
@@ -257,7 +260,7 @@ const Users = () => {
                   style={{ cursor: 'pointer', display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '14px', position: 'relative', overflow: 'hidden', padding: '14px 16px', borderLeft: `3px solid ${indicatorColor}` }}
                 >
                   <img
-                    src={u.photo || u.profile_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=111&color=fff&size=80`}
+                    src={u.photo_url || u.photo || u.profile_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=111&color=fff&size=80`}
                     alt={u.name}
                     style={{ width: '52px', height: '52px', borderRadius: '50%', flexShrink: 0, border: `2px solid ${indicatorColor}`, padding: '2px', objectFit: 'cover' }}
                   />
@@ -473,7 +476,7 @@ const Users = () => {
               {/* Columna Izquierda: Perfil y Status */}
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
                  <img 
-                    src={selectedUser.photo || selectedUser.photo_url || selectedUser.profile_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.name)}&background=111&color=fff&size=150`} 
+                    src={selectedUser.photo_url || selectedUser.photo || selectedUser.profile_photo_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedUser.name)}&background=111&color=fff&size=150`}
                     alt={selectedUser.name} 
                     style={{ width: '120px', height: '120px', borderRadius: '50%', objectFit: 'cover', marginBottom: '15px', border: '3px solid var(--primary)' }} 
                  />
