@@ -748,7 +748,7 @@ const Reservations = () => {
                  <form onSubmit={handleGenerateMonth} className="d-flex flex-column gap-3" style={{ flexDirection: 'column' }}>
                      <div>
                          <label className="form-label mb-2" style={{color: '#888', fontSize: '0.9rem'}}>Plantilla de Clases (Catálogo)</label>
-                         <select required value={genParams.gym_class_id} className="form-control" style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff' }} onChange={e => {
+                         <select required value={genParams.gym_class_id} className="form-control" style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff', fontSize: '0.9rem', padding: '10px 12px', height: 'auto' }} onChange={e => {
                                  const cId = e.target.value;
                                  const template = catalog.find(c => c.id === parseInt(cId));
                                  if (template) {
