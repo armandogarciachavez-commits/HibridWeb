@@ -91,7 +91,7 @@ a:hover {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding-top: 3mm;
+  padding-top: 13mm;
   padding-bottom: 70px; /* Space for bottom nav on mobile */
 }
 .bottom-nav {
