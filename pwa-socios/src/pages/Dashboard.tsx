@@ -31,7 +31,7 @@ const Dashboard = () => {
           if (daysLeft <= 7 && daysLeft >= 0) isExpiringSoon = true;
         }
         localStorage.setItem('user_status', statusText);
-        setUser({ name: data.name, photo: data.photo, plan: planName, status: statusText, membershipEnd: endDate, daysLeft, isExpiringSoon: isExpiringSoon || !activePlan });
+        setUser({ name: data.name, photo: data.photo_url || data.photo, plan: planName, status: statusText, membershipEnd: endDate, daysLeft, isExpiringSoon: isExpiringSoon || !activePlan });
       } catch { navigate('/login'); }
       finally  { setLoading(false); }
     };
@@ -139,7 +139,7 @@ const Dashboard = () => {
       {catalog.length > 0 && (
         <section>
           <h2 style={{ color: 'var(--text)', fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px' }}>Clases disponibles</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '12px' }}>
             {catalog.map(cls => (
               <div
                 key={cls.id}

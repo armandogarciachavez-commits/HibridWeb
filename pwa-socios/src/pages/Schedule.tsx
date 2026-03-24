@@ -252,7 +252,7 @@ const Schedule = () => {
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '10px', borderRadius: '4px', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '10px', borderRadius: '4px', gap: '8px', flexWrap: 'wrap' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <Dumbbell size={16} color="var(--secondary)" />
                     <span style={{ fontSize: '0.9rem', color: isFull ? '#ff4444' : 'var(--text)' }}>
@@ -312,7 +312,7 @@ const Schedule = () => {
                               : 'var(--primary)',
                         color: '#fff',
                         transition: 'background 0.2s',
-                        minWidth: '110px',
+                        minWidth: '90px',
                         justifyContent: 'center',
                       }}
                     >
