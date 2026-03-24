@@ -19,7 +19,7 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['https://admin.alfahybridtraning.com'],
+    'allowed_origins' => ['*', 'https://admin.alfahybridtraning.com'],
 
     'allowed_origins_patterns' => [],
 
