@@ -245,7 +245,7 @@ class AdminController extends Controller
         $gymClass = \App\Models\GymClass::findOrFail($request->gym_class_id);
         $created = 0;
         
-        $daysInMonth = cal_days_in_month(CAL_GREGORIAN, $request->month, $request->year);
+        $daysInMonth = (int) date('t', mktime(0, 0, 0, $request->month, 1, $request->year));
         
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $dateStr = sprintf('%04d-%02d-%02d', $request->year, $request->month, $day);
