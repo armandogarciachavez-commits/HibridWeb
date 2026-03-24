@@ -13,7 +13,7 @@ const Users = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [newUser, setNewUser] = useState({ id: null, name: '', username: '', email: '', phone: '', address: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' });
+  const [newUser, setNewUser] = useState<any>({ id: null, name: '', username: '', email: '', phone: '', address: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' });
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -58,29 +58,33 @@ const Users = () => {
     try {
       const isEdit = !!newUser.id;
       const url = isEdit ? `/admin/users/${newUser.id}` : '/admin/users';
-      const method = isEdit ? 'PUT' : 'POST';
 
-      const payload: any = {
-          name: newUser.name,
-          username: newUser.username,
-          email: newUser.email || null,
-          phone: newUser.phone,
-          address: newUser.address,
-          emergency_contact_name: newUser.emergencyName || null,
-          emergency_contact_phone: newUser.emergencyPhone || null,
-          photo: newUser.photo || null,
-      };
-
+      const formData = new FormData();
+      formData.append('name', newUser.name);
+      formData.append('username', newUser.username);
+      if (newUser.email) formData.append('email', newUser.email);
+      formData.append('phone', newUser.phone);
+      formData.append('address', newUser.address);
+      if (newUser.emergencyName) formData.append('emergency_contact_name', newUser.emergencyName);
+      if (newUser.emergencyPhone) formData.append('emergency_contact_phone', newUser.emergencyPhone);
+      
       if (!isEdit) {
-          payload.password = newUser.password;
-          payload.plan_type = newUser.planType;
-      } else if (newUser.password) {
-          payload.password = newUser.password;
+          formData.append('password', newUser.password);
+          formData.append('plan_type', newUser.planType);
+      } else {
+          formData.append('_method', 'PUT');
+          if (newUser.password) {
+              formData.append('password', newUser.password);
+          }
+      }
+
+      if (newUser.photo instanceof Blob || newUser.photo instanceof File) {
+          formData.append('photo', newUser.photo);
       }
 
       const res = await apiFetch(url, {
-        method: method,
-        body: JSON.stringify(payload)
+        method: 'POST',
+        body: formData
       });
       if (res.ok) {
         addToast(isEdit ? `Información de ${newUser.name} actualizada.` : `Socio ${newUser.name} registrado en Base de Datos.`, "success");
@@ -299,7 +303,7 @@ const Users = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px', borderRight: window.innerWidth > 600 ? '1px solid #222' : 'none', paddingRight: window.innerWidth > 600 ? '20px' : '0' }}>
                    <div style={{ width: '150px', height: '150px', borderRadius: '50%', background: '#222', display: 'flex', justifyContent: 'center', alignItems: 'center', border: '2px dashed #555', overflow: 'hidden' }}>
                       {newUser.photo ? (
-                         <img src={newUser.photo} alt="Vista previa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                         <img src={typeof newUser.photo === 'string' ? newUser.photo : URL.createObjectURL(newUser.photo)} alt="Vista previa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                       ) : (
                          <span style={{ color: 'var(--secondary)', fontSize: '0.8rem', textAlign: 'center', padding: '10px' }}>Sin foto</span>
                       )}
@@ -353,9 +357,13 @@ const Users = () => {
                                    const ctx = canvas.getContext('2d');
                                    if (ctx) {
                                        ctx.drawImage(img, 0, 0, width, height);
-                                       // Compress to 70% quality JPEG (drastically reduces base64 payload size, e.g. from 2MB to 150KB)
-                                       const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-                                       setNewUser({...newUser, photo: compressedBase64});
+                                       // Compress to 70% quality JPEG and convert to Blob File
+                                       canvas.toBlob((blob) => {
+                                           if (blob) {
+                                               const compressedFile = new File([blob], file.name, { type: 'image/jpeg', lastModified: Date.now() });
+                                               setNewUser({...newUser, photo: compressedFile});
+                                           }
+                                       }, 'image/jpeg', 0.7);
                                    }
                                };
                                img.onerror = () => {

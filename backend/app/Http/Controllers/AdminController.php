@@ -34,7 +34,8 @@ class AdminController extends Controller
             'password' => 'required|string|min:6',
             'emergency_contact_name' => 'required|string|max:255',
             'emergency_contact_phone' => 'required|string|max:255',
-            'plan_type' => 'nullable|string'
+            'plan_type' => 'nullable|string',
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $adminId = $request->user()?->id;
@@ -46,12 +47,15 @@ class AdminController extends Controller
             'phone' => $request->phone,
             'address' => $request->address,
             'password' => Hash::make($request->password),
-            'emergency_contact_name' => $request->emergency_contact_name ?? null,
             'emergency_contact_phone' => $request->emergency_contact_phone ?? null,
             'role' => 'socio',
-            'photo' => $request->photo ?? null,
             'created_by' => $adminId,
         ]);
+
+        if ($request->hasFile('photo')) {
+            $user->photo = $request->file('photo')->store('members', 'public');
+            $user->save();
+        }
 
         if ($request->filled('plan_type') && $request->plan_type !== 'none') {
             $months = 1;
@@ -68,6 +72,8 @@ class AdminController extends Controller
                 'created_by' => $adminId,
             ]);
         }
+
+        $user->photo_url = $user->photo ? \Illuminate\Support\Facades\Storage::url($user->photo) : null;
 
         return response()->json([
             'message' => 'Socio registrado.',
@@ -88,6 +94,7 @@ class AdminController extends Controller
             'emergency_contact_name' => 'required|string|max:255',
             'emergency_contact_phone' => 'required|string|max:255',
             'password' => 'nullable|string|min:6', // Optional password update
+            'photo' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:4096',
         ]);
 
         $updateData = [
@@ -103,11 +110,15 @@ class AdminController extends Controller
         if ($request->filled('password')) {
             $updateData['password'] = Hash::make($request->password);
         }
-        if ($request->filled('photo')) {
-            $updateData['photo'] = $request->photo;
+        if ($request->hasFile('photo')) {
+            if ($user->photo) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($user->photo);
+            }
+            $updateData['photo'] = $request->file('photo')->store('members', 'public');
         }
 
         $user->update($updateData);
+        $user->photo_url = $user->photo ? \Illuminate\Support\Facades\Storage::url($user->photo) : null;
 
         return response()->json([
             'message' => 'Socio actualizado correctamente.',
