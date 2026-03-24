@@ -69,6 +69,7 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
   const response = await fetch(`${BASE}${path}`, {
     ...options,
     headers,
+    cache: 'no-store',
   });
 
   if (response.status === 401) {
