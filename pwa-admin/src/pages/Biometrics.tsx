@@ -60,10 +60,11 @@ const Biometrics = () => {
           
           <div className="form-group">
             <label>1. Selecciona el Socio en Recepción</label>
-            <select 
-              className="input-field" 
-              value={selectedUser} 
+            <select
+              className="input-field"
+              value={selectedUser}
               onChange={(e) => setSelectedUser(e.target.value)}
+              style={{ height: '37px', boxSizing: 'border-box', width: '100%' }}
             >
               <option value="">-- Buscar Socio --</option>
               {users.map((u) => (
