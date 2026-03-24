@@ -574,7 +574,7 @@ const Users = () => {
                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                       <div style={{ gridColumn: '1 / -1' }}>
                          <label style={{ color: 'var(--secondary)', fontSize: '0.8rem', display: 'block', marginBottom: '5px' }}>Tipo de Plan</label>
-                         <select value={manualPlan} onChange={e => setManualPlan(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#111', color: 'var(--text)', border: '1px solid #555' }}>
+                         <select value={manualPlan} onChange={e => setManualPlan(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#111', color: 'var(--text)', border: '1px solid #555', height: '37px', boxSizing: 'border-box' }}>
                             <option value="mensual">Mensualidad General</option>
                             <option value="bimestre">Bimestre</option>
                             <option value="trimestre">Trimestre</option>
@@ -583,11 +583,11 @@ const Users = () => {
                       </div>
                       <div>
                          <label style={{ color: 'var(--secondary)', fontSize: '0.8rem', display: 'block', marginBottom: '5px' }}>Inicio</label>
-                         <input type="date" value={manualStart} onChange={e => setManualStart(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#111', color: 'var(--text)', border: '1px solid #555' }} />
+                         <input type="date" value={manualStart} onChange={e => setManualStart(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#111', color: 'var(--text)', border: '1px solid #555', height: '37px', boxSizing: 'border-box' }} />
                       </div>
                       <div>
                          <label style={{ color: 'var(--secondary)', fontSize: '0.8rem', display: 'block', marginBottom: '5px' }}>Fin</label>
-                         <input type="date" value={manualEnd} onChange={e => setManualEnd(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#111', color: 'var(--text)', border: '1px solid #555' }} />
+                         <input type="date" value={manualEnd} onChange={e => setManualEnd(e.target.value)} style={{ width: '100%', padding: '8px', borderRadius: '4px', background: '#111', color: 'var(--text)', border: '1px solid #555', height: '37px', boxSizing: 'border-box' }} />
                       </div>
                    </div>
                    <button className="btn" disabled={loading} style={{ width: '100%', marginTop: '15px', padding: '10px' }} onClick={handleManualRenew}>
