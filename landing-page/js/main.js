@@ -190,108 +190,201 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /* ══════════════════════════════════════
-   SCHEDULE BOOKING MODAL
+   DYNAMIC CALENDAR — Horarios del mes
 ══════════════════════════════════════ */
-const bookingModal    = document.getElementById('bookingModal');
-const closeBookingBtn = document.getElementById('closeBookingModal');
-const bookingForm     = document.getElementById('bookingForm');
+(function () {
+  const API_BASE   = 'https://api.alfahybridtraning.com/api/classes/month';
+  // Week starts on Monday (grid header: LUN MAR MIÉ JUE VIE SÁB DOM)
+  const DAYS_ES    = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
+  const MONTHS_ES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                      'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
-const CLASS_ICONS = {
-  strength: 'fa-dumbbell',
-  upper:    'fa-fire-flame-curved',
-  test:     'fa-bolt',
-  athlete:  'fa-trophy',
-  yoga:     'fa-spa',
-};
-const CLASS_COLORS = {
-  strength: '#00d4ff',
-  upper:    '#a78bfa',
-  test:     '#fb923c',
-  athlete:  '#f87171',
-  yoga:     '#4ade80',
-};
+  const elGrid       = document.getElementById('calGrid');
+  const elLoading    = document.getElementById('calLoading');
+  const elTitle      = document.getElementById('calTitle');
+  const elMonthTag   = document.getElementById('calMonthTag');
+  const elDetail     = document.getElementById('calDetail');
+  const elDetailTitle= document.getElementById('calDetailTitle');
+  const elDetailList = document.getElementById('calDetailList');
+  const elDetailClose= document.getElementById('calDetailClose');
+  const elPrev       = document.getElementById('calPrev');
+  const elNext       = document.getElementById('calNext');
 
-function openBookingModal({ className, instructor, day, time, colorClass }) {
-  document.getElementById('bookClass').value      = className;
-  document.getElementById('bookDay').value        = day;
-  document.getElementById('bookTime').value       = time;
-  document.getElementById('bookInstructor').value = instructor !== '—' ? instructor : 'Por asignar';
-  document.getElementById('bookName').value       = '';
-  document.getElementById('bookPhone').value      = '';
-  document.getElementById('bookingFormError').style.display = 'none';
+  if (!elGrid) return; // section not present
 
-  const color = CLASS_COLORS[colorClass] || 'var(--cyan)';
-  const icon  = CLASS_ICONS[colorClass]  || 'fa-calendar-check';
-  const instrText = instructor !== '—' ? `Instructor: ${instructor}` : 'Instructor por asignar';
+  const today = new Date();
+  let curYear  = today.getFullYear();
+  let curMonth = today.getMonth() + 1; // 1-based
 
-  document.getElementById('bookingClassInfo').innerHTML = `
-    <div class="booking-class-icon" style="background:${color}22;border:2px solid ${color}55">
-      <i class="fas ${icon}" style="color:${color}"></i>
-    </div>
-    <div class="booking-class-details">
-      <strong>${className}</strong>
-      <span>${day} &middot; ${time} &middot; ${instrText}</span>
-    </div>
-  `;
+  /* ── helpers ── */
+  function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+  // Returns Mon-based offset (0=Mon … 6=Sun)
+  function firstWeekdayMon(y, m) {
+    const dow = new Date(y, m - 1, 1).getDay(); // 0=Sun
+    return (dow + 6) % 7; // shift so Mon=0
+  }
+  function pad2(n) { return String(n).padStart(2, '0'); }
+  function fmtDate(y, m, d) { return `${y}-${pad2(m)}-${pad2(d)}`; }
 
-  bookingModal.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-  setTimeout(() => document.getElementById('bookName').focus(), 100);
-}
+  /* ── fetch sessions from API ── */
+  async function fetchMonth(year, month) {
+    const res = await fetch(`${API_BASE}?year=${year}&month=${month}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  }
 
-function closeBookingModalFn() {
-  bookingModal.style.display = 'none';
-  document.body.style.overflow = '';
-}
+  /* ── build a map: dateStr → [sessions] ── */
+  function buildDayMap(sessions) {
+    const map = {};
+    sessions.forEach(s => {
+      if (!map[s.date]) map[s.date] = [];
+      map[s.date].push(s);
+    });
+    return map;
+  }
 
-if (closeBookingBtn) closeBookingBtn.addEventListener('click', closeBookingModalFn);
-if (bookingModal)    bookingModal.addEventListener('click', e => {
-  if (e.target === bookingModal) closeBookingModalFn();
-});
+  /* ── render the calendar grid ── */
+  function renderGrid(year, month, dayMap) {
+    // Remove previous day cells, keep the 7 day-name headers
+    elGrid.querySelectorAll('.cal-cell').forEach(c => c.remove());
 
-if (bookingForm) {
-  bookingForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const name  = document.getElementById('bookName').value.trim();
-    const phone = document.getElementById('bookPhone').value.trim();
-    if (!name || !phone) {
-      document.getElementById('bookingFormError').style.display = 'flex';
-      return;
+    // Empty cells before first day (Mon-based offset)
+    const offset = firstWeekdayMon(year, month);
+    for (let i = 0; i < offset; i++) {
+      const blank = document.createElement('div');
+      blank.className = 'cal-cell empty';
+      elGrid.appendChild(blank);
     }
-    const cls    = document.getElementById('bookClass').value;
-    const day    = document.getElementById('bookDay').value;
-    const time   = document.getElementById('bookTime').value;
-    const instr  = document.getElementById('bookInstructor').value;
 
-    const msg = encodeURIComponent(
-      `¡Hola! Quiero reservar mi lugar en Hybrid Training.\n\n` +
-      `*Nombre:* ${name}\n` +
-      `*Teléfono:* ${phone}\n` +
-      `*Clase:* ${cls}\n` +
-      `*Día:* ${day}\n` +
-      `*Hora:* ${time}\n` +
-      `*Instructor:* ${instr}`
-    );
-    window.open(`https://wa.me/523141709880?text=${msg}`, '_blank');
-    closeBookingModalFn();
-  });
-}
+    // Day cells
+    const total = daysInMonth(year, month);
+    for (let d = 1; d <= total; d++) {
+      const dateStr  = fmtDate(year, month, d);
+      const sessions = dayMap[dateStr] || [];
+      const isToday  = (year === today.getFullYear() &&
+                        month === today.getMonth() + 1 &&
+                        d === today.getDate());
 
-/* Make each schedule slot clickable */
-document.querySelectorAll('.slot').forEach(slot => {
-  slot.addEventListener('click', () => {
-    const row       = slot.closest('tr');
-    const cell      = slot.closest('td');
-    const timeCell  = row.querySelector('.td-time');
-    const table     = slot.closest('table');
-    const cellIndex = Array.from(row.cells).indexOf(cell);
-    const headers   = table.querySelectorAll('thead th');
-    const day       = headers[cellIndex] ? headers[cellIndex].textContent.trim() : '';
-    const time      = timeCell ? timeCell.textContent.trim() : '';
-    const className  = slot.querySelector('b').textContent.trim();
-    const instructor = slot.querySelector('span').textContent.trim();
-    const colorClass = ['strength','upper','test','athlete','yoga']
-                         .find(c => slot.classList.contains(c)) || 'strength';
-    openBookingModal({ className, instructor, day, time, colorClass });
-  });
-});
+      const cell = document.createElement('div');
+      cell.className = 'cal-cell' + (isToday ? ' today' : '');
+      cell.dataset.date = dateStr;
+
+      const num = document.createElement('span');
+      num.className = 'cal-day-num';
+      num.textContent = d;
+      cell.appendChild(num);
+
+      if (sessions.length) {
+        const dots = document.createElement('div');
+        dots.className = 'cal-dots';
+        sessions.slice(0, 3).forEach(s => {
+          const dot = document.createElement('span');
+          dot.className = 'cal-dot';
+          dot.style.background = s.color || '#00ff88';
+          dots.appendChild(dot);
+        });
+        if (sessions.length > 3) {
+          const more = document.createElement('span');
+          more.className = 'cal-dot';
+          more.style.cssText = 'background:transparent;color:var(--gray-3);font-size:.6rem;width:auto;height:auto;border-radius:0';
+          more.textContent = `+${sessions.length - 3}`;
+          dots.appendChild(more);
+        }
+        cell.appendChild(dots);
+        cell.addEventListener('click', () => selectDay(dateStr, sessions));
+      } else {
+        cell.style.cursor = 'default';
+      }
+
+      elGrid.appendChild(cell);
+    }
+  }
+
+  /* ── show detail panel for a selected day ── */
+  function selectDay(dateStr, sessions) {
+    elGrid.querySelectorAll('.cal-cell.selected').forEach(c => c.classList.remove('selected'));
+    const activeCell = elGrid.querySelector(`[data-date="${dateStr}"]`);
+    if (activeCell) activeCell.classList.add('selected');
+
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dayIndex = (new Date(y, m - 1, d).getDay() + 6) % 7; // Mon=0
+    const label    = `${DAYS_ES[dayIndex]} ${d} de ${MONTHS_ES[m - 1]}`;
+
+    if (elDetailTitle) elDetailTitle.textContent = label;
+
+    if (elDetailList) {
+      elDetailList.innerHTML = sessions.map(s => {
+        const color  = s.color || '#00ff88';
+        const instr  = s.instructor || 'Por asignar';
+        const spots  = (s.capacity || 0) - (s.current_bookings || 0);
+        const spotsColor = spots > 0 ? '#4ade80' : '#f87171';
+        const spotsText  = spots > 0
+          ? `${spots} lugar${spots !== 1 ? 'es' : ''} libre${spots !== 1 ? 's' : ''}`
+          : 'Cupo lleno';
+        return `
+          <div class="cal-class-card" style="border-left-color:${color}">
+            <div class="cal-class-time">
+              <strong>${s.start_time}${s.end_time ? ' – ' + s.end_time : ''}</strong>
+            </div>
+            <div class="cal-class-info">
+              <strong>${s.name}</strong>
+              <span>${instr}</span>
+            </div>
+            <div class="cal-class-spots">
+              <strong style="color:${spotsColor}">${spotsText}</strong>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    elDetail.style.display = 'block';
+    setTimeout(() => elDetail.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 60);
+  }
+
+  /* ── close detail panel ── */
+  if (elDetailClose) {
+    elDetailClose.addEventListener('click', () => {
+      elDetail.style.display = 'none';
+      elGrid.querySelectorAll('.cal-cell.selected').forEach(c => c.classList.remove('selected'));
+    });
+  }
+
+  /* ── load & render a month ── */
+  async function loadMonth(year, month) {
+    if (elLoading) elLoading.classList.add('active');
+    if (elDetail)  elDetail.style.display  = 'none';
+    elGrid.style.opacity = '0.4';
+    if (elTitle)    elTitle.textContent    = `${MONTHS_ES[month - 1]} ${year}`;
+    if (elMonthTag) elMonthTag.textContent = `${MONTHS_ES[month - 1].toUpperCase()} ${year}`;
+
+    try {
+      const sessions = await fetchMonth(year, month);
+      renderGrid(year, month, buildDayMap(sessions));
+    } catch (err) {
+      // Remove old cells to show error
+      elGrid.querySelectorAll('.cal-cell').forEach(c => c.remove());
+      const errEl = document.createElement('p');
+      errEl.style.cssText = 'grid-column:1/-1;text-align:center;color:#f87171;padding:2rem;font-size:.9rem;';
+      errEl.textContent = 'No se pudo cargar el calendario. Intenta más tarde.';
+      elGrid.appendChild(errEl);
+      console.warn('[Calendar]', err);
+    } finally {
+      if (elLoading) elLoading.classList.remove('active');
+      elGrid.style.opacity = '1';
+    }
+  }
+
+  /* ── navigation ── */
+  function changeMonth(delta) {
+    curMonth += delta;
+    if (curMonth > 12) { curMonth = 1;  curYear++; }
+    if (curMonth < 1)  { curMonth = 12; curYear--; }
+    loadMonth(curYear, curMonth);
+  }
+
+  if (elPrev) elPrev.addEventListener('click', () => changeMonth(-1));
+  if (elNext) elNext.addEventListener('click', () => changeMonth(+1));
+
+  /* ── boot ── */
+  loadMonth(curYear, curMonth);
+})();

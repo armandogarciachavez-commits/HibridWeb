@@ -412,94 +412,41 @@
 <section id="horarios" class="section schedule-section">
   <div class="container">
     <div class="section-header reveal">
-      <span class="section-tag">CALENDARIO MARZO</span>
+      <span class="section-tag" id="calMonthTag">CALENDARIO</span>
       <h2 class="section-title">HORARIOS DE <span class="text-cyan">CLASES</span></h2>
-      <p class="section-sub">7 horarios al día · De lunes a sábado · Siempre hay un espacio para ti</p>
+      <p class="section-sub">Consulta las clases programadas del mes. Toca un día para ver el detalle.</p>
     </div>
-    <div class="sched-legend reveal">
-      <span class="sleg strength"><i class="fas fa-circle"></i> Hybrid Strength</span>
-      <span class="sleg upper"><i class="fas fa-circle"></i> Upper Burn</span>
-      <span class="sleg test"><i class="fas fa-circle"></i> Hybrid Test</span>
-      <span class="sleg athlete"><i class="fas fa-circle"></i> Hybrid Athlete</span>
-      <span class="sleg yoga"><i class="fas fa-circle"></i> Yoga</span>
+
+    <!-- Navegación de mes -->
+    <div class="cal-nav reveal">
+      <button class="cal-nav-btn" id="calPrev" aria-label="Mes anterior"><i class="fas fa-chevron-left"></i></button>
+      <span class="cal-nav-title" id="calTitle">Cargando...</span>
+      <button class="cal-nav-btn" id="calNext" aria-label="Mes siguiente"><i class="fas fa-chevron-right"></i></button>
     </div>
-    <div class="sched-scroll-hint"><i class="fas fa-arrows-left-right"></i> Desliza para ver el horario completo &nbsp;·&nbsp; <i class="fas fa-hand-pointer text-cyan"></i> <span class="text-cyan">Toca una clase para reservar tu lugar</span></div>
-    <div class="sched-table-wrap reveal">
-      <table class="sched-table">
-        <thead>
-          <tr>
-            <th class="th-time">Hora</th>
-            <th>Lunes</th><th>Martes</th><th>Miércoles</th>
-            <th>Jueves</th><th>Viernes</th><th>Sábado</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td class="td-time">6:00 AM</td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Alex</span></div></td>
-            <td><div class="slot upper"><b>Upper Burn</b><span>Esteban</span></div></td>
-            <td><div class="slot test"><b>Hybrid Test</b><span>Alex</span></div></td>
-            <td><div class="slot athlete"><b>Hybrid Athlete</b><span>Alex</span></div></td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Alan</span></div></td>
-            <td><div class="slot yoga"><b>Yoga</b><span>—</span></div></td>
-          </tr>
-          <tr>
-            <td class="td-time">7:00 AM</td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Ithzel</span></div></td>
-            <td><div class="slot upper"><b>Upper Burn</b><span>Alex</span></div></td>
-            <td><div class="slot test"><b>Hybrid Test</b><span>Ithzel</span></div></td>
-            <td><div class="slot athlete"><b>Hybrid Athlete</b><span>Alan</span></div></td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Alan</span></div></td>
-            <td class="td-empty">—</td>
-          </tr>
-          <tr>
-            <td class="td-time">8:00 AM</td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Vanessa</span></div></td>
-            <td><div class="slot upper"><b>Upper Burn</b><span>Alex</span></div></td>
-            <td><div class="slot test"><b>Hybrid Test</b><span>Vanessa</span></div></td>
-            <td><div class="slot athlete"><b>Hybrid Athlete</b><span>Vanessa</span></div></td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Adriana</span></div></td>
-            <td class="td-empty">—</td>
-          </tr>
-          <tr>
-            <td class="td-time">6:00 PM</td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Barbara</span></div></td>
-            <td><div class="slot upper"><b>Upper Burn</b><span>Gil</span></div></td>
-            <td><div class="slot test"><b>Hybrid Test</b><span>Gil</span></div></td>
-            <td><div class="slot athlete"><b>Hybrid Athlete</b><span>Gil</span></div></td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Gil</span></div></td>
-            <td class="td-empty">—</td>
-          </tr>
-          <tr>
-            <td class="td-time">7:00 PM</td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Ithzel</span></div></td>
-            <td><div class="slot upper"><b>Upper Burn</b><span>Gil</span></div></td>
-            <td><div class="slot test"><b>Hybrid Test</b><span>Gil</span></div></td>
-            <td><div class="slot athlete"><b>Hybrid Athlete</b><span>Gil</span></div></td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Gil</span></div></td>
-            <td class="td-empty">—</td>
-          </tr>
-          <tr>
-            <td class="td-time">8:00 PM</td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Ithzel</span></div></td>
-            <td><div class="slot upper"><b>Upper Burn</b><span>Gil</span></div></td>
-            <td><div class="slot test"><b>Hybrid Test</b><span>Gil</span></div></td>
-            <td><div class="slot athlete"><b>Hybrid Athlete</b><span>Adriana</span></div></td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Adriana</span></div></td>
-            <td class="td-empty">—</td>
-          </tr>
-          <tr>
-            <td class="td-time">9:00 PM</td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Barbara</span></div></td>
-            <td><div class="slot upper"><b>Upper Burn</b><span>—</span></div></td>
-            <td><div class="slot test"><b>Hybrid Test</b><span>—</span></div></td>
-            <td><div class="slot athlete"><b>Hybrid Athlete</b><span>—</span></div></td>
-            <td><div class="slot strength"><b>Hybrid Strength</b><span>Barbara</span></div></td>
-            <td class="td-empty">—</td>
-          </tr>
-        </tbody>
-      </table>
+
+    <!-- Grid del calendario -->
+    <div class="cal-wrap reveal">
+      <div class="cal-grid" id="calGrid">
+        <div class="cal-day-name">LUN</div>
+        <div class="cal-day-name">MAR</div>
+        <div class="cal-day-name">MIÉ</div>
+        <div class="cal-day-name">JUE</div>
+        <div class="cal-day-name">VIE</div>
+        <div class="cal-day-name">SÁB</div>
+        <div class="cal-day-name">DOM</div>
+      </div>
+      <div class="cal-loading" id="calLoading"><i class="fas fa-spinner fa-spin"></i> Cargando clases...</div>
     </div>
+
+    <!-- Panel de clases del día seleccionado -->
+    <div class="cal-detail" id="calDetail" style="display:none">
+      <div class="cal-detail-header">
+        <span id="calDetailTitle"></span>
+        <button class="cal-detail-close" id="calDetailClose" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="cal-detail-list" id="calDetailList"></div>
+    </div>
+
   </div>
 </section>
 

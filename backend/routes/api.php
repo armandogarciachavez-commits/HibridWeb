@@ -12,6 +12,7 @@ use App\Http\Controllers\PaymentController;
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
 Route::post('/register', [AuthController::class, 'register'])->middleware('throttle:5,1');
 Route::get('/classes', [ReservationController::class, 'getClasses']);
+Route::get('/classes/month', [ReservationController::class, 'getClassesByMonth']);
 Route::get('/catalog', fn() => response()->json(\App\Models\GymClass::all()));
 Route::post('/payments/webhook', [PaymentController::class, 'webhook']);
 

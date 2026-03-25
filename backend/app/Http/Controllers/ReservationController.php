@@ -38,6 +38,38 @@ class ReservationController extends Controller
         return response()->json($sessions);
     }
 
+    // Clases de todo un mes (público, para landing page)
+    public function getClassesByMonth(Request $request)
+    {
+        $year  = (int) $request->query('year',  date('Y'));
+        $month = (int) $request->query('month', date('n'));
+
+        $from = sprintf('%04d-%02d-01', $year, $month);
+        $to   = date('Y-m-t', strtotime($from));
+
+        $sessions = \App\Models\ClassSession::with('gymClass')
+            ->whereBetween('date', [$from, $to])
+            ->where('status', 'scheduled')
+            ->orderBy('date')
+            ->orderBy('start_time')
+            ->get()
+            ->map(function ($session) {
+                return [
+                    'id'               => $session->id,
+                    'date'             => $session->date,
+                    'start_time'       => substr($session->start_time, 0, 5),
+                    'end_time'         => substr($session->end_time,   0, 5),
+                    'instructor'       => $session->instructor,
+                    'capacity'         => $session->capacity,
+                    'current_bookings' => Reservation::where('class_session_id', $session->id)->count(),
+                    'name'             => $session->gymClass->name  ?? 'Clase',
+                    'color'            => $session->gymClass->color ?? '#00ff88',
+                ];
+            });
+
+        return response()->json($sessions);
+    }
+
     // Guardar una reservación (Socio)
     public function bookClass(Request $request)
     {
