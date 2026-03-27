@@ -421,19 +421,33 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 .why-section { background: var(--bg2); }
 .why-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 1.5rem; }
 .why-card {
-  background: var(--bg3); border: 1px solid rgba(255,255,255,.04);
+  background: var(--bg3); border-top: 3px solid transparent;
   border-radius: var(--radius); padding: 2rem 1.5rem; text-align: center;
-  transition: transform var(--t), border-color var(--t), box-shadow var(--t);
+  transition: transform var(--t), box-shadow var(--t);
 }
-.why-card:hover { transform: translateY(-6px); border-color: rgba(0,212,255,.2); box-shadow: 0 16px 40px rgba(0,0,0,.4); }
+.why-card:hover { transform: translateY(-6px); box-shadow: 0 16px 40px rgba(0,0,0,.45); }
+/* Card 1 — Cyan */
+.why-card:nth-child(1) { border-top-color: #00d4ff; }
+.why-card:nth-child(1) .why-icon { background: rgba(0,212,255,.12); border-color: rgba(0,212,255,.35); color: #00d4ff; }
+.why-card:nth-child(1):hover .why-icon { background: rgba(0,212,255,.25); }
+/* Card 2 — Verde */
+.why-card:nth-child(2) { border-top-color: #00ff88; }
+.why-card:nth-child(2) .why-icon { background: rgba(0,255,136,.12); border-color: rgba(0,255,136,.35); color: #00ff88; }
+.why-card:nth-child(2):hover .why-icon { background: rgba(0,255,136,.25); }
+/* Card 3 — Naranja */
+.why-card:nth-child(3) { border-top-color: #ff6b35; }
+.why-card:nth-child(3) .why-icon { background: rgba(255,107,53,.12); border-color: rgba(255,107,53,.35); color: #ff6b35; }
+.why-card:nth-child(3):hover .why-icon { background: rgba(255,107,53,.25); }
+/* Card 4 — Morado */
+.why-card:nth-child(4) { border-top-color: #a855f7; }
+.why-card:nth-child(4) .why-icon { background: rgba(168,85,247,.12); border-color: rgba(168,85,247,.35); color: #a855f7; }
+.why-card:nth-child(4):hover .why-icon { background: rgba(168,85,247,.25); }
 .why-icon {
-  width: 62px; height: 62px; border-radius: 50%;
-  background: var(--cyan-dim); border: 2px solid rgba(0,212,255,.2);
+  width: 62px; height: 62px; border-radius: 50%; border: 2px solid;
   display: flex; align-items: center; justify-content: center;
-  font-size: 1.5rem; color: var(--cyan); margin: 0 auto 1.25rem;
+  font-size: 1.5rem; margin: 0 auto 1.25rem;
   transition: background var(--t);
 }
-.why-card:hover .why-icon { background: rgba(0,212,255,.2); }
 .why-card h3 { font-family: var(--font-h); font-size: 1.25rem; letter-spacing: .04em; color: var(--white); margin-bottom: .5rem; }
 .why-card p { font-size: .9rem; color: var(--gray-3); line-height: 1.65; }
 
