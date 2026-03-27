@@ -453,10 +453,11 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 /* ── CLASSES SECTION ── */
 .classes-section { position: relative; overflow: hidden; }
 .classes-grid {
-  display: grid; grid-template-columns: repeat(3,1fr);
+  display: flex; flex-wrap: wrap; justify-content: center;
   gap: 1.5rem; position: relative; z-index: 1;
 }
 .class-card {
+  flex: 0 0 calc(33.333% - 1rem);
   position: relative; border-radius: var(--radius);
   overflow: hidden; aspect-ratio: 3/4;
   border: 1px solid rgba(255,255,255,.06);
