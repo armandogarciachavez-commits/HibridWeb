@@ -1,0 +1,7 @@
+# Coloca aquí las DLLs del SDK DigitalPersona:
+# - dpfpdd.dll
+# - dpfj.dll
+#
+# Ruta origen después de instalar el SDK:
+# C:\Program Files\DigitalPersona\One Touch SDK\Bin\dpfpdd.dll
+# C:\Program Files\DigitalPersona\One Touch SDK\Bin\dpfj.dll
