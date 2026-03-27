@@ -303,7 +303,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 /* Hero Content */
 .hero-content {
   position: relative; z-index: 2;
-  width: 100%; margin: 0 auto 0 -40px;
+  width: 100%; margin: 0 auto 0 -20px;
   padding: calc(var(--nav-h) + 60px) clamp(16px,4vw,48px) 80px;
   max-width: 860px; text-align: center;
 }
