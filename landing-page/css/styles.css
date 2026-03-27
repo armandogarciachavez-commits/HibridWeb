@@ -194,7 +194,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
   width: 100%; max-width: 1200px; margin: 0 auto;
 }
 .nav-logo { display: flex; align-items: center; }
-.nav-logo img { width: 44px; height: 44px; object-fit: contain; }
+.nav-logo img { width: 57px; height: 57px; object-fit: contain; mix-blend-mode: screen; }
 .nav-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
 .nav-links .nav-link {
   font-family: var(--font-b); font-size: .88rem; font-weight: 700;
