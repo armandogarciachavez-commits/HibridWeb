@@ -1,7 +1,12 @@
-# Coloca aquí las DLLs del SDK DigitalPersona:
-# - dpfpdd.dll
-# - dpfj.dll
-#
-# Ruta origen después de instalar el SDK:
-# C:\Program Files\DigitalPersona\One Touch SDK\Bin\dpfpdd.dll
-# C:\Program Files\DigitalPersona\One Touch SDK\Bin\dpfj.dll
+# DLLs requeridas — SDK managed DigitalPersona (.NET)
+
+Copia estos dos archivos en esta carpeta (libs\):
+
+  DPFPDevNET.dll   — captura del dispositivo
+  DPFPEngNET.dll   — extracción y matching de huellas
+
+Ruta origen (después de instalar el SDK):
+  C:\Program Files\DigitalPersona\.NET\Bin\DPFPDevNET.dll
+  C:\Program Files\DigitalPersona\.NET\Bin\DPFPEngNET.dll
+
+(También puede estar en C:\Program Files (x86)\DigitalPersona\.NET\Bin\)

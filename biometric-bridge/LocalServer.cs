@@ -95,7 +95,7 @@ public sealed class LocalServer : IDisposable
                 _capturing = true;
                 _log.LogInformation("Enrolando user_id={UserId}...", userId);
 
-                string? tmpl = _reader.CaptureTemplate(_cts.Token);
+                string? tmpl = await _reader.CaptureTemplateAsync(_cts.Token);
                 _capturing   = false;
 
                 if (tmpl == null)
@@ -114,7 +114,7 @@ public sealed class LocalServer : IDisposable
                 _capturing = true;
                 _log.LogInformation("Esperando escaneo de entrada...");
 
-                string? tmpl = _reader.CaptureTemplate(_cts.Token);
+                string? tmpl = await _reader.CaptureTemplateAsync(_cts.Token);
                 _capturing   = false;
 
                 if (tmpl == null)

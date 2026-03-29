@@ -1,72 +1,20 @@
-using System.Runtime.InteropServices;
+using DPFP;
+using DPFP.Capture;
+using DPFP.Processing;
 
 namespace HybridBiometricBridge;
 
 /// <summary>
-/// Wrapper P/Invoke para el SDK nativo DigitalPersona U.are.U 4500.
-/// Las DLLs deben estar en la carpeta libs/ junto al ejecutable.
+/// Wrapper para el SDK managed de DigitalPersona (.NET).
+/// Requiere DPFPDevNET.dll y DPFPEngNET.dll en libs/.
 /// </summary>
-public sealed class FingerprintReader : IDisposable
+public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
 {
-    // ── Constantes SDK ────────────────────────────────────────────────────
-    const int    DPFPDD_SUCCESS          = 0;
-    const uint   DPFPDD_IMG_FMT_PIXEL_BUFFER = 0x01010000;
-    const uint   DPFJ_FMD_ANSI_378_2004  = 0x001B0401;
-    const uint   CAPTURE_TIMEOUT_MS      = 8000;
-    const uint   IMAGE_RESOLUTION        = 500;
-    const uint   QUALITY_THRESHOLD       = 50;
-
-    // ── P/Invoke: dpfpdd.dll (device capture) ────────────────────────────
-    [DllImport("dpfpdd.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfpdd_init();
-
-    [DllImport("dpfpdd.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfpdd_exit();
-
-    [DllImport("dpfpdd.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfpdd_query_devices(out int deviceCount, IntPtr deviceList);
-
-    [DllImport("dpfpdd.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfpdd_open([MarshalAs(UnmanagedType.LPStr)] string deviceName, out IntPtr handle);
-
-    [DllImport("dpfpdd.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfpdd_close(IntPtr handle);
-
-    [DllImport("dpfpdd.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfpdd_capture(IntPtr handle, ref DpfpddCaptureParam param,
-                                     uint timeout, uint size, IntPtr result);
-
-    [DllImport("dpfpdd.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfpdd_capture_abort(IntPtr handle);
-
-    // ── P/Invoke: dpfj.dll (template extraction / matching) ──────────────
-    [DllImport("dpfj.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfj_create_fmd_from_fid(IntPtr fidData, uint fidSize,
-                                                uint fmdType,
-                                                IntPtr fmdData, ref uint fmdSize);
-
-    [DllImport("dpfj.dll", CallingConvention = CallingConvention.Cdecl)]
-    static extern int dpfj_compare(IntPtr fmd1, uint fmd1Size,
-                                   uint fmd1ViewOffset,
-                                   IntPtr fmd2, uint fmd2Size,
-                                   uint fmd2ViewOffset,
-                                   out uint score);
-
-    // ── Structs SDK ───────────────────────────────────────────────────────
-    [StructLayout(LayoutKind.Sequential)]
-    struct DpfpddCaptureParam
-    {
-        public uint size;
-        public uint imageResolution;
-        public uint imageQualityThreshold;
-    }
-
-    // ── Estado interno ────────────────────────────────────────────────────
-    private IntPtr _handle  = IntPtr.Zero;
-    private bool   _inited  = false;
+    private Capture?  _capture;
+    private TaskCompletionSource<string?>? _tcs;
     private readonly ILogger<FingerprintReader> _log;
 
-    public bool IsReady => _handle != IntPtr.Zero;
+    public bool IsReady => _capture != null;
 
     public FingerprintReader(ILogger<FingerprintReader> log)
     {
@@ -76,108 +24,106 @@ public sealed class FingerprintReader : IDisposable
     // ── Inicialización ────────────────────────────────────────────────────
     public bool Initialize()
     {
-        int ret = dpfpdd_init();
-        if (ret != DPFPDD_SUCCESS)
-        {
-            _log.LogError("dpfpdd_init falló: 0x{Ret:X}", ret);
-            return false;
-        }
-        _inited = true;
-
-        // Consultar dispositivos
-        ret = dpfpdd_query_devices(out int count, IntPtr.Zero);
-        if (ret != DPFPDD_SUCCESS || count == 0)
-        {
-            _log.LogError("No se encontró lector USB. Verifica la conexión.");
-            return false;
-        }
-
-        // Obtener nombre del primer dispositivo
-        int    deviceStructSize = 4096;
-        IntPtr deviceBuf        = Marshal.AllocHGlobal(deviceStructSize * count);
         try
         {
-            ret = dpfpdd_query_devices(out _, deviceBuf);
-            if (ret != DPFPDD_SUCCESS) return false;
-            string deviceName = Marshal.PtrToStringAnsi(deviceBuf) ?? "";
-            _log.LogInformation("Lector encontrado: {Device}", deviceName);
-
-            ret = dpfpdd_open(deviceName, out _handle);
-            if (ret != DPFPDD_SUCCESS)
-            {
-                _log.LogError("No se pudo abrir el lector: 0x{Ret:X}", ret);
-                return false;
-            }
+            _capture = new Capture(Priority.High);
+            _capture.EventHandler = this;
+            _log.LogInformation("Lector DigitalPersona inicializado (managed SDK).");
+            return true;
         }
-        finally { Marshal.FreeHGlobal(deviceBuf); }
-
-        _log.LogInformation("Lector inicializado correctamente.");
-        return true;
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Error al inicializar el lector. Verifica que esté conectado.");
+            return false;
+        }
     }
 
-    // ── Captura + extracción de template ─────────────────────────────────
+    // ── Captura async ─────────────────────────────────────────────────────
     /// <summary>
-    /// Espera que el usuario coloque el dedo y devuelve el template Base64.
-    /// Retorna null si falla o se cancela.
+    /// Espera que el usuario coloque el dedo y devuelve el template en Base64.
+    /// Devuelve null si falla o se cancela.
     /// </summary>
-    public string? CaptureTemplate(CancellationToken ct = default)
+    public async Task<string?> CaptureTemplateAsync(CancellationToken ct = default)
     {
-        if (!IsReady) return null;
+        if (_capture == null) return null;
 
-        int    fidBufferSize = 500_000;
-        IntPtr fidBuffer     = Marshal.AllocHGlobal(fidBufferSize);
-        try
+        _tcs = new TaskCompletionSource<string?>();
+        _capture.StartCapture();
+
+        using var reg = ct.Register(() =>
         {
-            var param = new DpfpddCaptureParam
-            {
-                size                  = (uint)Marshal.SizeOf<DpfpddCaptureParam>(),
-                imageResolution       = IMAGE_RESOLUTION,
-                imageQualityThreshold = QUALITY_THRESHOLD
-            };
+            _capture?.StopCapture();
+            _tcs?.TrySetResult(null);
+        });
 
-            int ret = dpfpdd_capture(_handle, ref param, CAPTURE_TIMEOUT_MS,
-                                     (uint)fidBufferSize, fidBuffer);
-
-            if (ct.IsCancellationRequested && ret != DPFPDD_SUCCESS) return null;
-
-            if (ret != DPFPDD_SUCCESS)
-            {
-                _log.LogWarning("Captura fallida o sin dedo en timeout: 0x{Ret:X}", ret);
-                return null;
-            }
-
-            // FID → FMD
-            uint   fmdSize   = 2048;
-            IntPtr fmdBuffer = Marshal.AllocHGlobal((int)fmdSize);
-            try
-            {
-                ret = dpfj_create_fmd_from_fid(fidBuffer, (uint)fidBufferSize,
-                                               DPFJ_FMD_ANSI_378_2004,
-                                               fmdBuffer, ref fmdSize);
-                if (ret != DPFPDD_SUCCESS)
-                {
-                    _log.LogWarning("Extracción de template fallida: 0x{Ret:X}", ret);
-                    return null;
-                }
-
-                byte[] fmdBytes = new byte[fmdSize];
-                Marshal.Copy(fmdBuffer, fmdBytes, 0, (int)fmdSize);
-                return Convert.ToBase64String(fmdBytes);
-            }
-            finally { Marshal.FreeHGlobal(fmdBuffer); }
-        }
-        finally { Marshal.FreeHGlobal(fidBuffer); }
+        return await _tcs.Task;
     }
 
     public void AbortCapture()
     {
-        if (IsReady) dpfpdd_capture_abort(_handle);
+        _capture?.StopCapture();
+        _tcs?.TrySetResult(null);
     }
+
+    // ── DPFP.Capture.EventHandler ─────────────────────────────────────────
+    void DPFP.Capture.EventHandler.OnComplete(
+        object Capture, string ReaderSerialNumber, Sample sample)
+    {
+        _capture?.StopCapture();
+        try
+        {
+            var extractor = new FeatureExtraction();
+            CaptureFeedback feedback = CaptureFeedback.None;
+            var features  = new FeatureSet();
+
+            // Intentar enrollment primero, luego verification
+            extractor.CreateFeatureSet(sample, DataPurpose.Enrollment,
+                                       ref feedback, ref features);
+            if (feedback != CaptureFeedback.Good)
+                extractor.CreateFeatureSet(sample, DataPurpose.Verification,
+                                           ref feedback, ref features);
+
+            if (feedback == CaptureFeedback.Good)
+            {
+                using var ms = new MemoryStream();
+                features.Serialize(ms);
+                _log.LogInformation("Huella capturada correctamente.");
+                _tcs?.TrySetResult(Convert.ToBase64String(ms.ToArray()));
+            }
+            else
+            {
+                _log.LogWarning("Calidad de huella insuficiente: {Feedback}", feedback);
+                _tcs?.TrySetResult(null);
+            }
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Error al procesar la huella.");
+            _tcs?.TrySetResult(null);
+        }
+    }
+
+    void DPFP.Capture.EventHandler.OnFingerTouch(
+        object Capture, string ReaderSerialNumber)
+        => _log.LogInformation("Dedo detectado en el lector.");
+
+    void DPFP.Capture.EventHandler.OnFingerGone(
+        object Capture, string ReaderSerialNumber) { }
+
+    void DPFP.Capture.EventHandler.OnReaderDisconnect(
+        object Capture, string ReaderSerialNumber)
+    {
+        _log.LogWarning("Lector desconectado.");
+        _tcs?.TrySetResult(null);
+    }
+
+    void DPFP.Capture.EventHandler.OnSampleQuality(
+        object Capture, string ReaderSerialNumber,
+        CaptureFeedback CaptureFeedback) { }
 
     public void Dispose()
     {
         AbortCapture();
-        if (_handle  != IntPtr.Zero) { dpfpdd_close(_handle); _handle = IntPtr.Zero; }
-        if (_inited)                 { dpfpdd_exit(); _inited = false; }
+        _capture = null;
     }
 }
