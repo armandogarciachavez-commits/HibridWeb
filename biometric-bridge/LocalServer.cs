@@ -72,12 +72,14 @@ public sealed class LocalServer : IDisposable
 
                 if (features is null) continue;
 
-                // Match against stored templates
+                // Match against stored templates (on STA thread)
                 var templates = await _api.GetTemplatesAsync();
                 int? matchedId = null;
                 foreach (var (uid, tmpl) in templates)
                 {
-                    if (TemplateMatcher.IsMatch(features!, tmpl, _log))
+                    var bytes = Convert.FromBase64String(tmpl);
+                    _log.LogInformation("Verificando uid={Uid} template={Bytes}b", uid, bytes.Length);
+                    if (_reader.VerifyOnSta(features!, bytes))
                     {
                         matchedId = uid;
                         break;
@@ -258,7 +260,8 @@ public sealed class LocalServer : IDisposable
             var templates = await _api.GetTemplatesAsync();
             foreach (var (uid, tmpl) in templates)
             {
-                if (TemplateMatcher.IsMatch(features!, tmpl, _log))
+                var bytes = Convert.FromBase64String(tmpl);
+                if (_reader.VerifyOnSta(features!, bytes))
                 {
                     var (ok, msg) = await _api.VerifyAsync(uid);
                     await WriteJson(res, new { ok, msg }, ok ? 200 : 403);

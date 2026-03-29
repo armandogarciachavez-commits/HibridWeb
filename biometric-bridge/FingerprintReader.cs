@@ -102,6 +102,32 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         _tcs?.TrySetResult(null);
     }
 
+    /// <summary>Runs Template.DeSerialize + Verification.Verify on the STA thread.</summary>
+    public bool VerifyOnSta(FeatureSet features, byte[] templateBytes)
+    {
+        bool result = false;
+        try
+        {
+            _form?.Invoke(() =>
+            {
+                try
+                {
+                    var template = new Template();
+                    using var ms = new MemoryStream(templateBytes);
+                    template.DeSerialize(ms);
+
+                    var verifier = new DPFP.Verification.Verification();
+                    var r        = new DPFP.Verification.Verification.Result();
+                    verifier.Verify(features, template, ref r);
+                    result = r.Verified;
+                }
+                catch { result = false; }
+            });
+        }
+        catch { result = false; }
+        return result;
+    }
+
     void DPFP.Capture.EventHandler.OnComplete(
         object Capture, string ReaderSerialNumber, DPFP.Sample sample)
     {
