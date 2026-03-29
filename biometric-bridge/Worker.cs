@@ -1,11 +1,9 @@
-using System.Windows.Forms;
-
 namespace HybridBiometricBridge;
 
 /// <summary>
 /// Worker principal del Windows Service.
-/// Inicia un hilo STA con message pump (requerido por el SDK DigitalPersona),
-/// inicializa el lector y el servidor local.
+/// Inicializa el lector y el servidor local,
+/// luego se mantiene vivo hasta que el servicio se detenga.
 /// </summary>
 public sealed class Worker : BackgroundService
 {
@@ -23,22 +21,6 @@ public sealed class Worker : BackgroundService
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _log.LogInformation("=== Hybrid Biometric Bridge iniciando ===");
-
-        // El SDK DigitalPersona necesita un message pump STA para recibir
-        // eventos USB del lector. Lo iniciamos en un hilo dedicado.
-        var pumpReady = new TaskCompletionSource();
-        var staThread = new Thread(() =>
-        {
-            Application.Idle += (_, _) => pumpReady.TrySetResult();
-            Application.Run();
-        });
-        staThread.SetApartmentState(ApartmentState.STA);
-        staThread.IsBackground = true;
-        staThread.Start();
-
-        // Esperar a que el message pump esté activo (máx. 3 s)
-        await Task.WhenAny(pumpReady.Task, Task.Delay(3_000, stoppingToken));
-        _log.LogInformation("Message pump STA iniciado.");
 
         // Intentar inicializar el lector (reintenta cada 5 s si falla)
         while (!stoppingToken.IsCancellationRequested && !_reader.IsReady)
@@ -61,7 +43,6 @@ public sealed class Worker : BackgroundService
         await Task.Delay(Timeout.Infinite, stoppingToken);
 
         _log.LogInformation("Bridge detenido.");
-        Application.ExitThread();
     }
 
     public override void Dispose()
