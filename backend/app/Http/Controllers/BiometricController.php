@@ -75,6 +75,14 @@ class BiometricController extends Controller
         ], $status === 'granted' ? 200 : 403);
     }
 
+    public function getTemplates()
+    {
+        $fingerprints = \App\Models\Fingerprint::where('is_active', true)
+            ->select('user_id', 'template_data', 'finger_index')
+            ->get();
+        return response()->json($fingerprints);
+    }
+
     public function getRecentScan()
     {
         $scan = ScanLog::with([

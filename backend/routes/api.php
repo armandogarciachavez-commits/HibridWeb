@@ -56,6 +56,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/biometric/enroll', [BiometricController::class, 'enroll']);
     Route::post('/biometric/verify', [BiometricController::class, 'verify']);
     Route::get('/admin/scans/recent', [BiometricController::class, 'getRecentScan']);
+    Route::get('/biometric/templates', [BiometricController::class, 'getTemplates']);
 });
 
 // ─── Super Administrador ──────────────────────────────────────────────────────

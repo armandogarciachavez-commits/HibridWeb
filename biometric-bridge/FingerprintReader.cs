@@ -5,17 +5,13 @@ using DPFP.Processing;
 
 namespace HybridBiometricBridge;
 
-/// <summary>
-/// Wrapper para el SDK managed de DigitalPersona (.NET).
-/// Usa un Form oculto en hilo STA como ancla del message pump
-/// (requerido por el SDK para recibir eventos USB del lector).
-/// </summary>
 public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
 {
     private Capture?  _capture;
-    private Form?     _form;       // ancla del message pump STA
+    private Form?     _form;
     private Thread?   _staThread;
-    private TaskCompletionSource<string?>? _tcs;
+    private TaskCompletionSource<FeatureSet?>? _tcs;
+    private DataPurpose _currentPurpose = DataPurpose.Verification;
     private readonly ILogger<FingerprintReader> _log;
 
     public bool IsReady => _capture != null;
@@ -25,7 +21,6 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         _log = log;
     }
 
-    // ── Inicialización ────────────────────────────────────────────────────
     public bool Initialize()
     {
         var ready   = new ManualResetEventSlim(false);
@@ -35,7 +30,6 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         {
             try
             {
-                // Form oculto — provee el HWND que necesita el SDK
                 _form = new Form
                 {
                     Visible       = false,
@@ -59,11 +53,11 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                     finally { ready.Set(); }
                 };
 
-                Application.Run(_form); // message pump STA
+                Application.Run(_form);
             }
             catch (Exception ex)
             {
-                _log.LogError(ex, "Error en hilo STA del lector.");
+                _log.LogError(ex, "Error en hilo STA.");
                 ready.Set();
             }
         });
@@ -76,14 +70,21 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         return success;
     }
 
-    // ── Captura async ─────────────────────────────────────────────────────
-    public async Task<string?> CaptureTemplateAsync(CancellationToken ct = default)
+    /// <summary>Capture one FeatureSet for enrollment (Enrollment purpose).</summary>
+    public Task<FeatureSet?> CaptureForEnrollmentAsync(CancellationToken ct = default)
+        => CaptureInternalAsync(DataPurpose.Enrollment, ct);
+
+    /// <summary>Capture one FeatureSet for identification (Verification purpose).</summary>
+    public Task<FeatureSet?> CaptureForVerificationAsync(CancellationToken ct = default)
+        => CaptureInternalAsync(DataPurpose.Verification, ct);
+
+    private async Task<FeatureSet?> CaptureInternalAsync(DataPurpose purpose, CancellationToken ct)
     {
         if (_capture == null || _form == null) return null;
 
-        _tcs = new TaskCompletionSource<string?>();
+        _currentPurpose = purpose;
+        _tcs = new TaskCompletionSource<FeatureSet?>();
 
-        // StartCapture DEBE ejecutarse en el hilo STA
         _form.Invoke(() => _capture.StartCapture());
 
         using var reg = ct.Register(() =>
@@ -101,7 +102,6 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         _tcs?.TrySetResult(null);
     }
 
-    // ── DPFP.Capture.EventHandler ─────────────────────────────────────────
     void DPFP.Capture.EventHandler.OnComplete(
         object Capture, string ReaderSerialNumber, DPFP.Sample sample)
     {
@@ -112,18 +112,12 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
             DPFP.Capture.CaptureFeedback feedback = DPFP.Capture.CaptureFeedback.None;
             var features = new FeatureSet();
 
-            extractor.CreateFeatureSet(sample, DataPurpose.Enrollment,
-                                       ref feedback, ref features);
-            if (feedback != DPFP.Capture.CaptureFeedback.Good)
-                extractor.CreateFeatureSet(sample, DataPurpose.Verification,
-                                           ref feedback, ref features);
+            extractor.CreateFeatureSet(sample, _currentPurpose, ref feedback, ref features);
 
             if (feedback == DPFP.Capture.CaptureFeedback.Good)
             {
-                using var ms = new MemoryStream();
-                features.Serialize(ms);
-                _log.LogInformation("Huella capturada correctamente.");
-                _tcs?.TrySetResult(Convert.ToBase64String(ms.ToArray()));
+                _log.LogInformation("Muestra capturada ({Purpose}).", _currentPurpose);
+                _tcs?.TrySetResult(features);
             }
             else
             {
@@ -133,24 +127,20 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Error al procesar la huella.");
+            _log.LogError(ex, "Error al procesar muestra.");
             _tcs?.TrySetResult(null);
         }
     }
 
-    void DPFP.Capture.EventHandler.OnFingerTouch(
-        object Capture, string ReaderSerialNumber)
-        => _log.LogInformation("Dedo detectado en el lector.");
+    void DPFP.Capture.EventHandler.OnFingerTouch(object Capture, string ReaderSerialNumber)
+        => _log.LogInformation("Dedo detectado.");
 
-    void DPFP.Capture.EventHandler.OnFingerGone(
-        object Capture, string ReaderSerialNumber) { }
+    void DPFP.Capture.EventHandler.OnFingerGone(object Capture, string ReaderSerialNumber) { }
 
-    void DPFP.Capture.EventHandler.OnReaderConnect(
-        object Capture, string ReaderSerialNumber)
+    void DPFP.Capture.EventHandler.OnReaderConnect(object Capture, string ReaderSerialNumber)
         => _log.LogInformation("Lector conectado: {Serial}", ReaderSerialNumber);
 
-    void DPFP.Capture.EventHandler.OnReaderDisconnect(
-        object Capture, string ReaderSerialNumber)
+    void DPFP.Capture.EventHandler.OnReaderDisconnect(object Capture, string ReaderSerialNumber)
     {
         _log.LogWarning("Lector desconectado.");
         _tcs?.TrySetResult(null);
