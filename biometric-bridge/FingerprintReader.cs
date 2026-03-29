@@ -115,17 +115,27 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                     var template = new Template();
                     using var ms = new MemoryStream(templateBytes);
                     template.DeSerialize(ms);
+                    _log.LogInformation("Template deserializado OK. Verificando...");
 
                     var verifier = new DPFP.Verification.Verification();
                     verifier.FARRequested = 10_000; // ~10% FAR para pruebas
                     var r = new DPFP.Verification.Verification.Result();
                     verifier.Verify(features, template, ref r);
+                    _log.LogInformation("Verify result: {V}", r.Verified);
                     result = r.Verified;
                 }
-                catch { result = false; }
+                catch (Exception ex)
+                {
+                    _log.LogError(ex, "Error en VerifyOnSta interno");
+                    result = false;
+                }
             });
         }
-        catch { result = false; }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "Error en VerifyOnSta Invoke");
+            result = false;
+        }
         return result;
     }
 
