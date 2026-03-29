@@ -39,11 +39,14 @@ public static class TemplateMatcher
     /// Compares a scanned FeatureSet against a stored Template (Base64).
     /// Returns true if they match.
     /// </summary>
-    public static bool IsMatch(FeatureSet scannedFeatures, string templateBase64)
+    public static bool IsMatch(FeatureSet scannedFeatures, string templateBase64,
+                               Microsoft.Extensions.Logging.ILogger? log = null)
     {
         try
         {
             var bytes = Convert.FromBase64String(templateBase64);
+            log?.LogInformation("IsMatch: template {Bytes} bytes", bytes.Length);
+
             var template = new Template();
             using var ms = new MemoryStream(bytes);
             template.DeSerialize(ms);
@@ -51,10 +54,12 @@ public static class TemplateMatcher
             var verifier = new Verification();
             var result   = new Verification.Result();
             verifier.Verify(scannedFeatures, template, ref result);
+            log?.LogInformation("IsMatch: Verified={V} Score={S}", result.Verified, result.Score);
             return result.Verified;
         }
-        catch
+        catch (Exception ex)
         {
+            log?.LogError(ex, "IsMatch exception");
             return false;
         }
     }

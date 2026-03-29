@@ -77,7 +77,7 @@ public sealed class LocalServer : IDisposable
                 int? matchedId = null;
                 foreach (var (uid, tmpl) in templates)
                 {
-                    if (TemplateMatcher.IsMatch(features!, tmpl))
+                    if (TemplateMatcher.IsMatch(features!, tmpl, _log))
                     {
                         matchedId = uid;
                         break;
@@ -258,7 +258,7 @@ public sealed class LocalServer : IDisposable
             var templates = await _api.GetTemplatesAsync();
             foreach (var (uid, tmpl) in templates)
             {
-                if (TemplateMatcher.IsMatch(features!, tmpl))
+                if (TemplateMatcher.IsMatch(features!, tmpl, _log))
                 {
                     var (ok, msg) = await _api.VerifyAsync(uid);
                     await WriteJson(res, new { ok, msg }, ok ? 200 : 403);
