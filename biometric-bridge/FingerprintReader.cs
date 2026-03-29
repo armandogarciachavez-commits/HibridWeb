@@ -117,7 +117,8 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                     template.DeSerialize(ms);
 
                     var verifier = new DPFP.Verification.Verification();
-                    var r        = new DPFP.Verification.Verification.Result();
+                    verifier.FARRequested = 10_000; // ~10% FAR para pruebas
+                    var r = new DPFP.Verification.Verification.Result();
                     verifier.Verify(features, template, ref r);
                     result = r.Verified;
                 }
