@@ -67,23 +67,23 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
 
     // ── DPFP.Capture.EventHandler ─────────────────────────────────────────
     void DPFP.Capture.EventHandler.OnComplete(
-        object Capture, string ReaderSerialNumber, Sample sample)
+        object Capture, string ReaderSerialNumber, DPFP.Sample sample)
     {
         _capture?.StopCapture();
         try
         {
             var extractor = new FeatureExtraction();
-            CaptureFeedback feedback = CaptureFeedback.None;
+            DPFP.Capture.CaptureFeedback feedback = DPFP.Capture.CaptureFeedback.None;
             var features  = new FeatureSet();
 
             // Intentar enrollment primero, luego verification
             extractor.CreateFeatureSet(sample, DataPurpose.Enrollment,
                                        ref feedback, ref features);
-            if (feedback != CaptureFeedback.Good)
+            if (feedback != DPFP.Capture.CaptureFeedback.Good)
                 extractor.CreateFeatureSet(sample, DataPurpose.Verification,
                                            ref feedback, ref features);
 
-            if (feedback == CaptureFeedback.Good)
+            if (feedback == DPFP.Capture.CaptureFeedback.Good)
             {
                 using var ms = new MemoryStream();
                 features.Serialize(ms);
@@ -110,6 +110,10 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
     void DPFP.Capture.EventHandler.OnFingerGone(
         object Capture, string ReaderSerialNumber) { }
 
+    void DPFP.Capture.EventHandler.OnReaderConnect(
+        object Capture, string ReaderSerialNumber)
+        => _log.LogInformation("Lector conectado: {Serial}", ReaderSerialNumber);
+
     void DPFP.Capture.EventHandler.OnReaderDisconnect(
         object Capture, string ReaderSerialNumber)
     {
@@ -119,7 +123,7 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
 
     void DPFP.Capture.EventHandler.OnSampleQuality(
         object Capture, string ReaderSerialNumber,
-        CaptureFeedback CaptureFeedback) { }
+        DPFP.Capture.CaptureFeedback CaptureFeedback) { }
 
     public void Dispose()
     {

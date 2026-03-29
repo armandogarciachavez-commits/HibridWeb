@@ -24,6 +24,12 @@
     <Reference Include="DPFPEngNET">
       <HintPath>libs\DPFPEngNET.dll</HintPath>
     </Reference>
+    <Reference Include="DPFPShrNET">
+      <HintPath>libs\DPFPShrNET.dll</HintPath>
+    </Reference>
+    <Reference Include="DPFPVerNET">
+      <HintPath>libs\DPFPVerNET.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
   <!-- Copiar DLLs al output -->
@@ -32,6 +38,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="libs\DPFPEngNET.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="libs\DPFPShrNET.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="libs\DPFPVerNET.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
