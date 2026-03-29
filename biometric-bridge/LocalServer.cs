@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using DPFP;
 using DPFP.Processing;
 
 namespace HybridBiometricBridge;
@@ -69,14 +70,14 @@ public sealed class LocalServer : IDisposable
                     _captureLock.Release();
                 }
 
-                if (features == null) continue;
+                if (features is null) continue;
 
                 // Match against stored templates
                 var templates = await _api.GetTemplatesAsync();
                 int? matchedId = null;
                 foreach (var (uid, tmpl) in templates)
                 {
-                    if (TemplateMatcher.IsMatch(features, tmpl))
+                    if (TemplateMatcher.IsMatch(features!, tmpl))
                     {
                         matchedId = uid;
                         break;
@@ -254,7 +255,7 @@ public sealed class LocalServer : IDisposable
             var templates = await _api.GetTemplatesAsync();
             foreach (var (uid, tmpl) in templates)
             {
-                if (TemplateMatcher.IsMatch(features, tmpl))
+                if (TemplateMatcher.IsMatch(features!, tmpl))
                 {
                     var (ok, msg) = await _api.VerifyAsync(uid);
                     await WriteJson(res, new { ok, msg }, ok ? 200 : 403);

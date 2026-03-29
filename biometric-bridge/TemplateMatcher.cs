@@ -26,7 +26,7 @@ public static class TemplateMatcher
                 return (Convert.ToBase64String(ms.ToArray()), true, 0);
             }
             // Need more samples
-            int needed = enrollment.FeaturesNeeded;
+            int needed = (int)enrollment.FeaturesNeeded;
             return (null, false, needed);
         }
         catch
