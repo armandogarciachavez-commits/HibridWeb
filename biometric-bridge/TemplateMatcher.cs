@@ -54,7 +54,7 @@ public static class TemplateMatcher
             var verifier = new Verification();
             var result   = new Verification.Result();
             verifier.Verify(scannedFeatures, template, ref result);
-            log?.LogInformation("IsMatch: Verified={V} Score={S}", result.Verified, result.Score);
+            log?.LogInformation("IsMatch: Verified={V}", result.Verified);
             return result.Verified;
         }
         catch (Exception ex)
