@@ -174,7 +174,10 @@ public sealed class LocalServer : IDisposable
         var body     = JsonSerializer.Deserialize<JsonElement>(await sr.ReadToEndAsync());
         int userId   = body.GetProperty("user_id").GetInt32();
 
-        if (!await _captureLock.WaitAsync(0))
+        // Abort scan loop capture so it releases the lock
+        _reader.AbortCapture();
+
+        if (!await _captureLock.WaitAsync(3_000))
         {
             await WriteJson(res, new { ok = false, msg = "Ya hay una captura en curso." }, 409);
             return;
