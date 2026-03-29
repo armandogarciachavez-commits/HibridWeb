@@ -1,11 +1,12 @@
 @echo off
 :: ============================================================
-:: Hybrid Biometric Bridge — Instalador de Windows Service
+:: Hybrid Biometric Bridge — Instalador via Task Scheduler
 :: Ejecutar como Administrador
+:: Corre en la sesion del usuario (necesario para acceso USB)
 :: ============================================================
 
-set SERVICE_NAME=HybridBiometricBridge
-set EXE_PATH=%~dp0HybridBiometricBridge.exe
+set TASK_NAME=HybridBiometricBridge
+set EXE_PATH=%~dp0bin\Release\net8.0-windows\win-x64\publish\HybridBiometricBridge.exe
 
 echo.
 echo  === Hybrid Biometric Bridge - Instalador ===
@@ -14,51 +15,33 @@ echo.
 :: Verificar que el .exe exista
 if not exist "%EXE_PATH%" (
     echo [ERROR] No se encontro el ejecutable: %EXE_PATH%
-    echo         Primero compila el proyecto con: dotnet publish
+    echo         Primero compila el proyecto con: dotnet publish -c Release -r win-x64 --self-contained
     pause
     exit /b 1
 )
 
-:: Detener e eliminar si ya existe
-sc query "%SERVICE_NAME%" >nul 2>&1
-if %ERRORLEVEL% == 0 (
-    echo [INFO] Servicio ya existe, deteniendo...
-    sc stop "%SERVICE_NAME%" >nul 2>&1
-    timeout /t 3 /nobreak >nul
-    sc delete "%SERVICE_NAME%" >nul 2>&1
-    timeout /t 2 /nobreak >nul
-)
+:: Eliminar tarea anterior si existe
+schtasks /delete /tn "%TASK_NAME%" /f >nul 2>&1
 
-:: Crear el servicio
-echo [INFO] Instalando servicio...
-sc create "%SERVICE_NAME%" binPath= "\"%EXE_PATH%\"" start= auto DisplayName= "Hybrid Biometric Bridge"
+:: Crear tarea que inicia al logon del usuario actual en sesion interactiva
+schtasks /create /tn "%TASK_NAME%" ^
+  /tr "\"%EXE_PATH%\"" ^
+  /sc onlogon ^
+  /rl highest ^
+  /f
 
 if %ERRORLEVEL% NEQ 0 (
-    echo [ERROR] No se pudo instalar. Ejecuta como Administrador.
+    echo [ERROR] No se pudo crear la tarea. Ejecuta como Administrador.
     pause
     exit /b 1
 )
 
-:: Descripcion del servicio
-sc description "%SERVICE_NAME%" "Puente entre el lector de huellas Digital Persona y la plataforma Hybrid Training."
+echo [INFO] Iniciando bridge ahora...
+start "" "%EXE_PATH%"
 
-:: Configurar reinicio automatico en caso de fallo
-sc failure "%SERVICE_NAME%" reset= 60 actions= restart/5000/restart/5000/restart/10000
-
-:: Iniciar el servicio
-echo [INFO] Iniciando servicio...
-sc start "%SERVICE_NAME%"
-
-timeout /t 3 /nobreak >nul
-sc query "%SERVICE_NAME%" | find "RUNNING" >nul
-if %ERRORLEVEL% == 0 (
-    echo.
-    echo [OK] Servicio instalado y corriendo correctamente.
-    echo      Se iniciara automaticamente con Windows.
-) else (
-    echo.
-    echo [WARN] Servicio instalado pero no inicio. Revisa el lector USB.
-)
-
+echo.
+echo [OK] Hybrid Biometric Bridge instalado correctamente.
+echo      Iniciara automaticamente cada vez que inicies sesion en Windows.
+echo      Escuchando en http://localhost:7071
 echo.
 pause

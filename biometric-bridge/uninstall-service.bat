@@ -1,11 +1,13 @@
 @echo off
-:: Ejecutar como Administrador
-set SERVICE_NAME=HybridBiometricBridge
+set TASK_NAME=HybridBiometricBridge
 
-echo [INFO] Deteniendo y eliminando servicio %SERVICE_NAME%...
-sc stop "%SERVICE_NAME%" >nul 2>&1
-timeout /t 3 /nobreak >nul
-sc delete "%SERVICE_NAME%"
+echo.
+echo  === Hybrid Biometric Bridge - Desinstalador ===
+echo.
 
-echo [OK] Servicio eliminado.
+taskkill /im HybridBiometricBridge.exe /f >/dev/null 2>&1
+schtasks /delete /tn "%TASK_NAME%" /f >/dev/null 2>&1
+
+echo [OK] Bridge desinstalado correctamente.
+echo.
 pause
