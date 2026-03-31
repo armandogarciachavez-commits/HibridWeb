@@ -24,7 +24,7 @@ const Announcements = () => {
   const [saving, setSaving]         = useState(false);
   const [confirmId, setConfirmId]   = useState<number | null>(null);
   const fileRef                     = useRef<HTMLInputElement>(null);
-  const { showToast }               = useToast();
+  const { addToast: showToast }     = useToast();
 
   const load = async () => {
     setLoading(true);
@@ -221,6 +221,7 @@ const Announcements = () => {
 
       <ConfirmModal
         isOpen={!!confirmId}
+        title="Eliminar anuncio"
         message="¿Eliminar este anuncio? Esta acción no se puede deshacer."
         onConfirm={handleDelete}
         onCancel={() => setConfirmId(null)}
