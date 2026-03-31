@@ -7,6 +7,7 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\AnnouncementController;
 
 // ─── Rutas públicas ───────────────────────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -25,6 +26,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/reservations/cancel/{sessionId}', [ReservationController::class, 'cancelClass']);
     Route::post('/payments/create-preference', [PaymentController::class, 'createPreference']);
     Route::post('/logout', [AuthController::class, 'logout']);
+    Route::get('/announcements', [AnnouncementController::class, 'index']);
 });
 
 // ─── Administrador (admin + superadmin) ───────────────────────────────────────
@@ -57,6 +59,13 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/biometric/verify', [BiometricController::class, 'verify']);
     Route::get('/admin/scans/recent', [BiometricController::class, 'getRecentScan']);
     Route::get('/biometric/templates', [BiometricController::class, 'getTemplates']);
+
+    // Anuncios (admin)
+    Route::get('/admin/announcements', [AnnouncementController::class, 'adminIndex']);
+    Route::post('/admin/announcements', [AnnouncementController::class, 'store']);
+    Route::put('/admin/announcements/{id}', [AnnouncementController::class, 'update']);
+    Route::patch('/admin/announcements/{id}/toggle', [AnnouncementController::class, 'toggle']);
+    Route::delete('/admin/announcements/{id}', [AnnouncementController::class, 'destroy']);
 });
 
 // ─── Super Administrador ──────────────────────────────────────────────────────

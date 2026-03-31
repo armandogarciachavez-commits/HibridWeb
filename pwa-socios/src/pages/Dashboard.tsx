@@ -1,14 +1,17 @@
-import { QrCode, Dumbbell, CreditCard, Loader2, Clock, Users, X, Calendar, Flame, Target, Zap, Activity } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { QrCode, Dumbbell, CreditCard, Loader2, Clock, Users, X, Calendar, Flame, Target, Zap, Activity, ChevronLeft, ChevronRight, Megaphone } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 
 const Dashboard = () => {
-  const [loading, setLoading]   = useState(true);
-  const [paying, setPaying]     = useState(false);
-  const [user, setUser]         = useState<any>(null);
-  const [catalog, setCatalog]   = useState<any[]>([]);
-  const [selected, setSelected] = useState<any>(null);
+  const [loading, setLoading]             = useState(true);
+  const [paying, setPaying]               = useState(false);
+  const [user, setUser]                   = useState<any>(null);
+  const [catalog, setCatalog]             = useState<any[]>([]);
+  const [selected, setSelected]           = useState<any>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [annIdx, setAnnIdx]               = useState(0);
+  const annTimer                          = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,9 +47,24 @@ const Dashboard = () => {
       } catch { /* catálogo silencioso — no bloquea la pantalla */ }
     };
 
+    const fetchAnnouncements = async () => {
+      try {
+        const res = await apiFetch('/announcements');
+        if (res.ok) setAnnouncements(await res.json());
+      } catch { /* silencioso */ }
+    };
+
     fetchUser();
     fetchCatalog();
+    fetchAnnouncements();
   }, [navigate]);
+
+  // Auto-avance del carrusel cada 5s
+  useEffect(() => {
+    if (announcements.length <= 1) return;
+    annTimer.current = setInterval(() => setAnnIdx(i => (i + 1) % announcements.length), 5000);
+    return () => { if (annTimer.current) clearInterval(annTimer.current); };
+  }, [announcements]);
 
   const handleRenew = async () => {
     setPaying(true);
@@ -84,6 +102,61 @@ const Dashboard = () => {
 
   return (
     <div style={{ padding: '20px', paddingBottom: '100px' }}>
+
+      {/* Anuncios / Promociones */}
+      {announcements.length > 0 && (
+        <section style={{ marginBottom: '24px', position: 'relative' }}>
+          <div style={{
+            borderRadius: '14px', overflow: 'hidden',
+            background: 'var(--surface)', border: '1px solid #222',
+            position: 'relative', minHeight: '100px',
+          }}>
+            {/* Slide activo */}
+            {announcements[annIdx].image && (
+              <img
+                src={announcements[annIdx].image}
+                alt=""
+                style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block' }}
+              />
+            )}
+            <div style={{ padding: '14px 16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                <Megaphone size={14} color="var(--primary)" />
+                <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Anuncio</span>
+              </div>
+              <h3 style={{ color: 'var(--text)', fontSize: '1rem', fontWeight: 700, marginBottom: '4px' }}>
+                {announcements[annIdx].title}
+              </h3>
+              {announcements[annIdx].body && (
+                <p style={{ color: 'var(--secondary)', fontSize: '0.88rem', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                  {announcements[annIdx].body}
+                </p>
+              )}
+            </div>
+
+            {/* Navegación si hay más de 1 */}
+            {announcements.length > 1 && (
+              <>
+                <button onClick={() => { setAnnIdx(i => (i - 1 + announcements.length) % announcements.length); }}
+                  style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
+                  <ChevronLeft size={16} />
+                </button>
+                <button onClick={() => { setAnnIdx(i => (i + 1) % announcements.length); }}
+                  style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.5)', border: 'none', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
+                  <ChevronRight size={16} />
+                </button>
+                {/* Dots */}
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '5px', padding: '8px 0 4px' }}>
+                  {announcements.map((_, i) => (
+                    <div key={i} onClick={() => setAnnIdx(i)} style={{ width: '6px', height: '6px', borderRadius: '50%', background: i === annIdx ? 'var(--primary)' : '#444', cursor: 'pointer', transition: 'background 0.3s' }} />
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </section>
+      )}
+
       {/* Header */}
       <header style={{ marginBottom: '24px', textAlign: 'center' }}>
         <h1 style={{ color: 'var(--text)', fontSize: '1.5rem', marginBottom: '4px' }}>Hola, {user.name}</h1>

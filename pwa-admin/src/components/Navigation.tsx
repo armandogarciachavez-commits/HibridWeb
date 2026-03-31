@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar as CalendarIcon, Fingerprint, ShieldCheck, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar as CalendarIcon, Fingerprint, ShieldCheck, LogOut, Megaphone } from 'lucide-react';
 
 interface NavigationProps {
   onLogout: () => void;
@@ -36,6 +36,11 @@ const Navigation = ({ onLogout }: NavigationProps) => {
         <NavLink to="/biometrics" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <Fingerprint size={20} />
           <span>Ajustes Biométricos</span>
+        </NavLink>
+
+        <NavLink to="/announcements" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Megaphone size={20} />
+          <span>Anuncios y Promociones</span>
         </NavLink>
 
         {isSuperAdmin && (
