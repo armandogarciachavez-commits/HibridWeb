@@ -45,9 +45,27 @@ const Announcements = () => {
   const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => setEditing(prev => ({ ...prev, image: ev.target?.result as string }));
-    reader.readAsDataURL(file);
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast('La imagen no puede superar 2 MB', 'error');
+      e.target.value = '';
+      return;
+    }
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      if (img.width > 800 || img.height > 800) {
+        showToast(`Imagen demasiado grande (${img.width}×${img.height}px). Máximo 800×800px`, 'error');
+        e.target.value = '';
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = ev => setEditing(prev => ({ ...prev, image: ev.target?.result as string }));
+      reader.readAsDataURL(file);
+    };
+    img.src = url;
   };
 
   const handleSave = async () => {

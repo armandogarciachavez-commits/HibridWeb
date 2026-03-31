@@ -11,6 +11,7 @@ const Dashboard = () => {
   const [selected, setSelected]           = useState<any>(null);
   const [announcements, setAnnouncements] = useState<any[]>([]);
   const [annIdx, setAnnIdx]               = useState(0);
+  const [annImage, setAnnImage]           = useState<string | null>(null);
   const annTimer                          = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
 
@@ -116,7 +117,8 @@ const Dashboard = () => {
               <img
                 src={announcements[annIdx].image}
                 alt=""
-                style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block' }}
+                onClick={() => setAnnImage(announcements[annIdx].image)}
+                style={{ width: '100%', maxHeight: '180px', objectFit: 'cover', display: 'block', cursor: 'zoom-in' }}
               />
             )}
             <div style={{ padding: '14px 16px' }}>
@@ -299,6 +301,24 @@ const Dashboard = () => {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Lightbox imagen anuncio */}
+      {annImage && (
+        <div
+          onClick={() => setAnnImage(null)}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: '16px' }}
+        >
+          <button onClick={() => setAnnImage(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
+            <X size={20} />
+          </button>
+          <img
+            src={annImage}
+            alt=""
+            onClick={e => e.stopPropagation()}
+            style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '12px', objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}
+          />
         </div>
       )}
 
