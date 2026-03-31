@@ -121,8 +121,8 @@ const Dashboard = () => {
             )}
             <div style={{ padding: '14px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                <Megaphone size={14} color="var(--primary)" />
-                <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Anuncio</span>
+                <Megaphone size={14} color="#ff2222" />
+                <span style={{ fontSize: '0.72rem', color: '#ff2222', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Anuncio</span>
               </div>
               <h3 style={{ color: 'var(--text)', fontSize: '1rem', fontWeight: 700, marginBottom: '4px' }}>
                 {announcements[annIdx].title}
