@@ -14,6 +14,16 @@ class BuensoftImportSeeder extends Seeder
         $membersFile     = __DIR__ . '/buensoft_members.csv';
         $membershipsFile = __DIR__ . '/buensoft_memberships.csv';
 
+        // ── 0. Borrar socios de prueba (mantiene admins y entrenadores) ──
+        $this->command->info("Eliminando socios de prueba...");
+        $socioIds = DB::table('users')->where('role', 'socio')->pluck('id');
+        DB::table('memberships')->whereIn('user_id', $socioIds)->delete();
+        DB::table('fingerprints')->whereIn('user_id', $socioIds)->delete();
+        DB::table('scan_logs')->whereIn('user_id', $socioIds)->delete();
+        DB::table('reservations')->whereIn('user_id', $socioIds)->delete();
+        DB::table('users')->whereIn('id', $socioIds)->delete();
+        $this->command->info("  Eliminados: {$socioIds->count()} socios de prueba.\n");
+
         // ── 1. Leer membresías indexadas por fkMemberID ───────────────────
         $memberships = [];
         $mHandle = fopen($membershipsFile, 'r');
