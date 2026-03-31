@@ -10,11 +10,12 @@ interface Announcement {
   body: string | null;
   image: string | null;
   is_active: boolean;
+  published_at: string | null;
   expires_at: string | null;
   created_at: string;
 }
 
-const empty = (): Partial<Announcement> => ({ title: '', body: '', image: null, is_active: true, expires_at: '' });
+const empty = (): Partial<Announcement> => ({ title: '', body: '', image: null, is_active: true, published_at: '', expires_at: '' });
 
 const Announcements = () => {
   const [items, setItems]           = useState<Announcement[]>([]);
@@ -60,11 +61,12 @@ const Announcements = () => {
           method: isNew ? 'POST' : 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            title:      editing.title,
-            body:       editing.body || null,
-            image:      editing.image || null,
-            is_active:  editing.is_active,
-            expires_at: editing.expires_at || null,
+            title:        editing.title,
+            body:         editing.body || null,
+            image:        editing.image || null,
+            is_active:    editing.is_active,
+            published_at: editing.published_at || null,
+            expires_at:   editing.expires_at || null,
           }),
         }
       );
@@ -96,15 +98,15 @@ const Announcements = () => {
   return (
     <div className="admin-page">
       <div className="admin-page-header">
+        <button className="btn" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Plus size={18} /> Nuevo Anuncio
+        </button>
         <div>
           <h1 className="admin-page-title">Anuncios y Promociones</h1>
           <p style={{ color: 'var(--secondary)', fontSize: '0.9rem', marginTop: '4px' }}>
             Envía mensajes y promociones a la app de socios
           </p>
         </div>
-        <button className="btn" onClick={openCreate} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Plus size={18} /> Nuevo Anuncio
-        </button>
       </div>
 
       {loading ? (
@@ -168,16 +170,33 @@ const Announcements = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
+
+              {/* Título */}
+              <div style={{ width: '100%' }}>
                 <label className="form-label">Título *</label>
-                <input className="form-input" value={editing.title || ''} onChange={e => setEditing(p => ({ ...p, title: e.target.value }))} placeholder="Ej: Promo Marzo 2026" />
+                <input
+                  className="form-input"
+                  style={{ width: '100%', boxSizing: 'border-box', fontSize: '1rem', height: '2.4rem' }}
+                  value={editing.title || ''}
+                  onChange={e => setEditing(p => ({ ...p, title: e.target.value }))}
+                  placeholder="Ej: Promo Marzo 2026"
+                />
               </div>
 
-              <div>
+              {/* Mensaje */}
+              <div style={{ width: '100%' }}>
                 <label className="form-label">Mensaje</label>
-                <textarea className="form-input" rows={4} value={editing.body || ''} onChange={e => setEditing(p => ({ ...p, body: e.target.value }))} placeholder="Texto del anuncio..." style={{ resize: 'vertical' }} />
+                <textarea
+                  className="form-input"
+                  rows={4}
+                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+                  value={editing.body || ''}
+                  onChange={e => setEditing(p => ({ ...p, body: e.target.value }))}
+                  placeholder="Texto del anuncio..."
+                />
               </div>
 
+              {/* Imagen */}
               <div>
                 <label className="form-label">Imagen (opcional)</label>
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
@@ -197,11 +216,31 @@ const Announcements = () => {
                 <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImage} />
               </div>
 
-              <div>
-                <label className="form-label">Fecha de expiración (opcional)</label>
-                <input className="form-input" type="date" value={editing.expires_at?.split('T')[0] || ''} onChange={e => setEditing(p => ({ ...p, expires_at: e.target.value }))} />
+              {/* Fechas en grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label">Programar publicación</label>
+                  <input
+                    className="form-input"
+                    type="datetime-local"
+                    style={{ width: '100%', boxSizing: 'border-box', height: '2.4rem', fontSize: '0.9rem' }}
+                    value={editing.published_at?.slice(0, 16) || ''}
+                    onChange={e => setEditing(p => ({ ...p, published_at: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="form-label">Fecha de expiración</label>
+                  <input
+                    className="form-input"
+                    type="datetime-local"
+                    style={{ width: '100%', boxSizing: 'border-box', height: '2.4rem', fontSize: '0.9rem' }}
+                    value={editing.expires_at?.slice(0, 16) || ''}
+                    onChange={e => setEditing(p => ({ ...p, expires_at: e.target.value }))}
+                  />
+                </div>
               </div>
 
+              {/* Publicar inmediatamente */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <input type="checkbox" id="is_active" checked={!!editing.is_active} onChange={e => setEditing(p => ({ ...p, is_active: e.target.checked }))} />
                 <label htmlFor="is_active" style={{ color: 'var(--text)', fontSize: '0.9rem', cursor: 'pointer' }}>Publicar inmediatamente</label>

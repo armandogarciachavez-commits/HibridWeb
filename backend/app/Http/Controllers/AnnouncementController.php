@@ -26,20 +26,22 @@ class AnnouncementController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title'      => 'required|string|max:255',
-            'body'       => 'nullable|string',
-            'image'      => 'nullable|string',
-            'is_active'  => 'boolean',
-            'expires_at' => 'nullable|date',
+            'title'        => 'required|string|max:255',
+            'body'         => 'nullable|string',
+            'image'        => 'nullable|string',
+            'is_active'    => 'boolean',
+            'published_at' => 'nullable|date',
+            'expires_at'   => 'nullable|date',
         ]);
 
         $ann = Announcement::create([
-            'title'      => $request->title,
-            'body'       => $request->body,
-            'image'      => $request->image,
-            'is_active'  => $request->boolean('is_active', true),
-            'expires_at' => $request->expires_at,
-            'created_by' => $request->user()->id,
+            'title'        => $request->title,
+            'body'         => $request->body,
+            'image'        => $request->image,
+            'is_active'    => $request->boolean('is_active', true),
+            'published_at' => $request->published_at,
+            'expires_at'   => $request->expires_at,
+            'created_by'   => $request->user()->id,
         ]);
 
         return response()->json($ann, 201);
@@ -50,14 +52,15 @@ class AnnouncementController extends Controller
         $ann = Announcement::findOrFail($id);
 
         $request->validate([
-            'title'      => 'sometimes|string|max:255',
-            'body'       => 'nullable|string',
-            'image'      => 'nullable|string',
-            'is_active'  => 'boolean',
-            'expires_at' => 'nullable|date',
+            'title'        => 'sometimes|string|max:255',
+            'body'         => 'nullable|string',
+            'image'        => 'nullable|string',
+            'is_active'    => 'boolean',
+            'published_at' => 'nullable|date',
+            'expires_at'   => 'nullable|date',
         ]);
 
-        $ann->update($request->only(['title', 'body', 'image', 'is_active', 'expires_at']));
+        $ann->update($request->only(['title', 'body', 'image', 'is_active', 'published_at', 'expires_at']));
 
         return response()->json($ann);
     }

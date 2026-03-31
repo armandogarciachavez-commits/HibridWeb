@@ -13,6 +13,7 @@ return new class extends Migration {
             $table->text('body')->nullable();
             $table->longText('image')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->timestamp('published_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->unsignedBigInteger('created_by')->nullable();
             $table->timestamps();
