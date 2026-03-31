@@ -70,11 +70,16 @@ const Announcements = () => {
           }),
         }
       );
-      if (!res.ok) throw new Error();
-      showToast(isNew ? 'Anuncio creado' : 'Anuncio actualizado', 'success');
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        const msg = err?.message || JSON.stringify(err?.errors || 'Error al enviar');
+        showToast(msg, 'error');
+        return;
+      }
+      showToast(isNew ? 'Anuncio enviado' : 'Anuncio actualizado', 'success');
       setModal(false);
       load();
-    } catch { showToast('Error al guardar', 'error'); }
+    } catch (e: any) { showToast(e?.message || 'Error de conexión', 'error'); }
     finally { setSaving(false); }
   };
 
@@ -176,7 +181,7 @@ const Announcements = () => {
                 <label className="form-label">Título *</label>
                 <input
                   className="form-input"
-                  style={{ width: '100%', boxSizing: 'border-box', fontSize: '1rem', height: '2.4rem' }}
+                  style={{ width: '100%', boxSizing: 'border-box', fontSize: 'var(--font-size, 1rem)', height: '2.4rem' }}
                   value={editing.title || ''}
                   onChange={e => setEditing(p => ({ ...p, title: e.target.value }))}
                   placeholder="Ej: Promo Marzo 2026"
@@ -189,7 +194,7 @@ const Announcements = () => {
                 <textarea
                   className="form-input"
                   rows={4}
-                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
+                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', fontSize: 'var(--font-size, 1rem)', lineHeight: 1.6 }}
                   value={editing.body || ''}
                   onChange={e => setEditing(p => ({ ...p, body: e.target.value }))}
                   placeholder="Texto del anuncio..."
@@ -250,7 +255,7 @@ const Announcements = () => {
                 <button className="btn-secondary" onClick={() => setModal(false)}>Cancelar</button>
                 <button className="btn" onClick={handleSave} disabled={saving} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {saving ? <Loader2 className="animate-spin" size={16} /> : null}
-                  {saving ? 'Guardando...' : 'Guardar'}
+                  {saving ? 'Enviando...' : 'Enviar'}
                 </button>
               </div>
             </div>
