@@ -308,17 +308,20 @@ const Dashboard = () => {
       {annImage && (
         <div
           onClick={() => setAnnImage(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: '16px' }}
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: '16px' }}
         >
-          <button onClick={() => setAnnImage(null)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}>
-            <X size={20} />
-          </button>
           <img
             src={annImage}
             alt=""
             onClick={e => e.stopPropagation()}
-            style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: '12px', objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}
+            style={{ maxWidth: '100%', maxHeight: '75vh', borderRadius: '12px', objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}
           />
+          <button
+            onClick={e => { e.stopPropagation(); setAnnImage(null); }}
+            style={{ marginTop: '24px', background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: '24px', padding: '10px 32px', color: '#fff', fontSize: '1rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <X size={18} /> Cerrar
+          </button>
         </div>
       )}
 
