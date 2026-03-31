@@ -13,6 +13,7 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
     private TaskCompletionSource<FeatureSet?>? _tcs;
     private DataPurpose _currentPurpose = DataPurpose.Verification;
     private readonly ILogger<FingerprintReader> _log;
+    private DPFP.Verification.Verification? _verifier;
 
     public bool IsReady => _capture != null;
 
@@ -43,6 +44,8 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                     {
                         _capture = new Capture(Priority.High);
                         _capture.EventHandler = this;
+                        _verifier = new DPFP.Verification.Verification();
+                        _verifier.FARRequested = 100; // 0.1% FAR
                         success = true;
                         _log.LogInformation("Lector DigitalPersona inicializado (STA).");
                     }
@@ -115,12 +118,10 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                     var template = new Template();
                     using var ms = new MemoryStream(templateBytes);
                     template.DeSerialize(ms);
-                    _log.LogInformation("Template deserializado OK. Verificando...");
+                    _log.LogInformation("Template deserializado OK ({B}b). Verificando...", templateBytes.Length);
 
-                    var verifier = new DPFP.Verification.Verification();
-                    verifier.FARRequested = 10_000; // ~10% FAR para pruebas
                     var r = new DPFP.Verification.Verification.Result();
-                    verifier.Verify(features, template, ref r);
+                    _verifier!.Verify(features, template, ref r);
                     _log.LogInformation("Verify result: {V}", r.Verified);
                     result = r.Verified;
                 }
