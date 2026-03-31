@@ -52,6 +52,14 @@ const Announcements = () => {
 
   const handleSave = async () => {
     if (!editing.title?.trim()) { showToast('El título es obligatorio', 'error'); return; }
+    if (editing.expires_at) {
+      const exp = new Date(editing.expires_at);
+      const minDate = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      if (exp < minDate) {
+        showToast('La fecha de expiración debe ser al menos 24 horas desde ahora', 'error');
+        return;
+      }
+    }
     setSaving(true);
     try {
       const isNew = !editing.id;
@@ -240,6 +248,7 @@ const Announcements = () => {
                     type="datetime-local"
                     style={{ width: '100%', boxSizing: 'border-box', height: '2.4rem', fontSize: '0.9rem' }}
                     value={editing.expires_at?.slice(0, 16) || ''}
+                    min={new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 16)}
                     onChange={e => setEditing(p => ({ ...p, expires_at: e.target.value }))}
                   />
                 </div>
