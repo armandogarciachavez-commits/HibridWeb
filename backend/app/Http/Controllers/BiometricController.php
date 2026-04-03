@@ -59,9 +59,10 @@ class BiometricController extends Controller
         $status = $hasActiveMembership ? 'granted' : 'denied';
 
         $scanLog = ScanLog::create([
-            'user_id' => $user->id,
-            'status' => $status,
-            'reader_id' => $request->reader_id ?? 'Main_Turnstile_1',
+            'user_id'    => $user->id,
+            'status'     => $status,
+            'reader_id'  => $request->reader_id ?? 'Main_Turnstile_1',
+            'scanned_at' => now(),
         ]);
 
         return response()->json([
@@ -95,7 +96,7 @@ class BiometricController extends Controller
                 })->with('classSession.gymClass');
             }
         ])
-        ->where('scanned_at', '>=', now()->subMinutes(5))
+        ->where('created_at', '>=', now()->subMinutes(5))
         ->orderBy('scanned_at', 'desc')
         ->first();
 
