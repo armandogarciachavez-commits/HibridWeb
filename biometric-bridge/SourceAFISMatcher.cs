@@ -33,10 +33,8 @@ public sealed class SourceAFISMatcher
         {
             try
             {
-                var bytes = Convert.FromBase64String(b64);
-                _cache[uid] = bytes.Length > 50_000
-                    ? BuildTemplate(bytes)                          // v1: PNG image
-                    : FingerprintTemplate.FromByteArray(bytes);     // v2: SourceAFIS serialized
+                var png = Convert.FromBase64String(b64);
+                _cache[uid] = BuildTemplate(png);
             }
             catch (Exception ex)
             {
@@ -51,11 +49,9 @@ public sealed class SourceAFISMatcher
     {
         try
         {
-            var bytes = Convert.FromBase64String(base64);
-            _cache[uid] = bytes.Length > 50_000
-                ? BuildTemplate(bytes)
-                : FingerprintTemplate.FromByteArray(bytes);
-            _log.LogInformation("Template uid={U} agregado al cache ({KB}KB).", uid, bytes.Length / 1024);
+            var png = Convert.FromBase64String(base64);
+            _cache[uid] = BuildTemplate(png);
+            _log.LogInformation("Template uid={U} agregado al cache.", uid);
         }
         catch (Exception ex)
         {
@@ -63,15 +59,9 @@ public sealed class SourceAFISMatcher
         }
     }
 
-    /// <summary>
-    /// Construye un template desde imagen PNG y lo serializa a bytes compactos (1-5KB).
-    /// Usar este base64 para almacenar en la DB.
-    /// </summary>
+    /// <summary>Retorna el PNG como base64 para almacenamiento (el .htaccess permite hasta 10MB).</summary>
     public static string BuildAndSerialize(byte[] imagePng)
-    {
-        var template = BuildTemplate(imagePng);
-        return Convert.ToBase64String(template.ToByteArray());
-    }
+        => Convert.ToBase64String(imagePng);
 
     /// <summary>Construye un FingerprintTemplate desde bytes PNG de la imagen.</summary>
     public static FingerprintTemplate BuildTemplate(byte[] imagePng)
