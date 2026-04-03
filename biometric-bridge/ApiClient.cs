@@ -1,4 +1,5 @@
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 
 namespace HybridBiometricBridge;
@@ -18,6 +19,7 @@ public sealed class ApiClient
         _http.DefaultRequestHeaders.Add("Authorization",
               $"Bearer {cfg["Bridge:AdminToken"]}");
         _http.DefaultRequestHeaders.Add("Accept", "application/json");
+        _http.Timeout = TimeSpan.FromSeconds(60);
     }
 
     // ── Enrolar: guarda template de un socio ─────────────────────────────
@@ -25,11 +27,21 @@ public sealed class ApiClient
     {
         try
         {
-            var res = await _http.PostAsJsonAsync($"{_base}/api/biometric/enroll",
-                new { user_id = userId, template_data = templateBase64 });
+            var payload = JsonSerializer.Serialize(new { user_id = userId, template_data = templateBase64 });
+            _log.LogInformation("EnrollAsync → user_id={U}, payload={KB}KB, Content-Type=application/json",
+                userId, payload.Length / 1024);
 
-            var body = await res.Content.ReadFromJsonAsync<JsonElement>();
-            string msg = body.TryGetProperty("message", out var m) ? m.GetString()! : "";
+            var content = new StringContent(payload, Encoding.UTF8, "application/json");
+            var res = await _http.PostAsync($"{_base}/api/biometric/enroll", content);
+
+            var rawBody = await res.Content.ReadAsStringAsync();
+            _log.LogInformation("EnrollAsync ← HTTP {S}: {B}", (int)res.StatusCode, rawBody);
+
+            JsonElement body;
+            try { body = JsonSerializer.Deserialize<JsonElement>(rawBody); }
+            catch { return (res.IsSuccessStatusCode, rawBody); }
+
+            string msg = body.TryGetProperty("message", out var m) ? m.GetString()! : rawBody;
             return (res.IsSuccessStatusCode, msg);
         }
         catch (Exception ex)
