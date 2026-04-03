@@ -1,33 +1,30 @@
 using System.Net;
 using System.Text;
 using System.Text.Json;
-using DPFP;
-using DPFP.Processing;
 
 namespace HybridBiometricBridge;
 
 public sealed class LocalServer : IDisposable
 {
-    private readonly HttpListener          _listener = new();
-    private readonly FingerprintReader     _reader;
-    private readonly ApiClient             _api;
-    private readonly ILogger<LocalServer>  _log;
+    private readonly HttpListener            _listener = new();
+    private readonly FingerprintReader       _reader;
+    private readonly SourceAFISMatcher       _matcher;
+    private readonly ApiClient               _api;
+    private readonly ILogger<LocalServer>    _log;
     private readonly CancellationTokenSource _cts = new();
-
-    // State for multi-step enrollment (keyed by user_id)
-    private readonly Dictionary<int, Enrollment> _enrollments = new();
-    private readonly SemaphoreSlim _captureLock = new(1, 1);
+    private readonly SemaphoreSlim           _captureLock = new(1, 1);
 
     private Task? _loop;
     private Task? _scanLoop;
     public bool Capturing => _captureLock.CurrentCount == 0;
 
-    public LocalServer(FingerprintReader reader, ApiClient api,
-                       IConfiguration cfg, ILogger<LocalServer> log)
+    public LocalServer(FingerprintReader reader, SourceAFISMatcher matcher,
+                       ApiClient api, IConfiguration cfg, ILogger<LocalServer> log)
     {
-        _reader = reader;
-        _api    = api;
-        _log    = log;
+        _reader  = reader;
+        _matcher = matcher;
+        _api     = api;
+        _log     = log;
 
         int port = cfg.GetValue<int>("Bridge:LocalPort", 7071);
         _listener.Prefixes.Add($"http://localhost:{port}/");
@@ -36,13 +33,12 @@ public sealed class LocalServer : IDisposable
     public void Start()
     {
         _listener.Start();
-        _log.LogInformation("Servidor local iniciado en {Prefix}",
-                            _listener.Prefixes.First());
+        _log.LogInformation("Servidor local iniciado en {P}", _listener.Prefixes.First());
         _loop     = Task.Run(ListenLoop);
         _scanLoop = Task.Run(() => ScanLoop(_cts.Token));
     }
 
-    // ── Continuous scan loop ──────────────────────────────────────────────
+    // ── Scan loop continuo ────────────────────────────────────────────────
     private async Task ScanLoop(CancellationToken ct)
     {
         _log.LogInformation("Modo escaneo continuo iniciado.");
@@ -50,53 +46,38 @@ public sealed class LocalServer : IDisposable
         {
             try
             {
-                if (!_reader.IsReady)
-                {
-                    await Task.Delay(2_000, ct);
-                    continue;
-                }
+                if (!_reader.IsReady) { await Task.Delay(2_000, ct); continue; }
 
-                // Wait until capture lock is free
                 await _captureLock.WaitAsync(ct);
-                FeatureSet? features = null;
+                byte[]? probePng = null;
                 try
                 {
                     using var scanCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                     scanCts.CancelAfter(TimeSpan.FromSeconds(10));
-                    features = await _reader.CaptureForVerificationAsync(scanCts.Token);
+                    probePng = await _reader.CaptureImageAsync(scanCts.Token);
                 }
-                finally
+                finally { _captureLock.Release(); }
+
+                if (probePng == null) continue;
+
+                // Recargar templates si el cache está vacío
+                if (_matcher.CacheSize == 0)
                 {
-                    _captureLock.Release();
+                    var templates = await _api.GetTemplatesAsync();
+                    _matcher.ReloadCache(templates.Select(t => (t.Key, t.Value)));
                 }
 
-                if (features is null) continue;
-
-                // Match against stored templates (on STA thread)
-                var templates = await _api.GetTemplatesAsync();
-                int? matchedId = null;
-                foreach (var (uid, tmpl) in templates)
-                {
-                    var bytes = Convert.FromBase64String(tmpl);
-                    _log.LogInformation("Verificando uid={Uid} template={Bytes}b", uid, bytes.Length);
-                    if (_reader.VerifyOnSta(features!, bytes))
-                    {
-                        matchedId = uid;
-                        break;
-                    }
-                }
+                var matchedId = _matcher.Match(probePng, _log);
 
                 if (matchedId.HasValue)
                 {
                     _log.LogInformation("Socio identificado: user_id={Id}", matchedId.Value);
                     var (ok, msg) = await _api.VerifyAsync(matchedId.Value);
-                    _log.LogInformation("Acceso: {Status} — {Msg}", ok ? "GRANTED" : "DENIED", msg);
-                    // Brief pause after successful scan to avoid duplicate logs
+                    _log.LogInformation("Acceso: {S} — {M}", ok ? "GRANTED" : "DENIED", msg);
                     await Task.Delay(3_000, ct);
                 }
                 else
                 {
-                    _log.LogWarning("Huella no reconocida.");
                     await Task.Delay(1_000, ct);
                 }
             }
@@ -141,42 +122,36 @@ public sealed class LocalServer : IDisposable
         try
         {
             if (path == "/status" && req.HttpMethod == "GET")
-            {
                 await WriteJson(res, new { ready = _reader.IsReady, capturing = Capturing });
-            }
+
             else if (path == "/enroll" && req.HttpMethod == "POST")
-            {
                 await HandleEnroll(req, res);
-            }
+
             else if (path == "/scan" && req.HttpMethod == "POST")
-            {
                 await HandleScan(res);
-            }
+
             else if (path == "/abort" && req.HttpMethod == "POST")
             {
                 _reader.AbortCapture();
                 await WriteJson(res, new { ok = true, msg = "Captura cancelada." });
             }
             else
-            {
                 await WriteJson(res, new { msg = "Ruta no encontrada." }, 404);
-            }
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Error procesando {Path}", path);
+            _log.LogError(ex, "Error procesando {P}", path);
             await WriteJson(res, new { ok = false, msg = ex.Message }, 500);
         }
     }
 
-    // ── Multi-step enrollment ─────────────────────────────────────────────
+    // ── Enrolamiento (1 captura = 1 template SourceAFIS) ─────────────────
     private async Task HandleEnroll(HttpListenerRequest req, HttpListenerResponse res)
     {
         using var sr = new StreamReader(req.InputStream);
-        var body     = JsonSerializer.Deserialize<JsonElement>(await sr.ReadToEndAsync());
-        int userId   = body.GetProperty("user_id").GetInt32();
+        var body   = JsonSerializer.Deserialize<JsonElement>(await sr.ReadToEndAsync());
+        int userId = body.GetProperty("user_id").GetInt32();
 
-        // Abort scan loop capture so it releases the lock
         _reader.AbortCapture();
 
         if (!await _captureLock.WaitAsync(3_000))
@@ -187,56 +162,36 @@ public sealed class LocalServer : IDisposable
 
         try
         {
-            _log.LogInformation("Capturando muestra de enrolamiento para user_id={Id}...", userId);
+            _log.LogInformation("Capturando huella para user_id={Id}...", userId);
 
             using var enrollCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
             enrollCts.CancelAfter(TimeSpan.FromSeconds(20));
 
-            var features = await _reader.CaptureForEnrollmentAsync(enrollCts.Token);
-            if (features == null)
+            var png = await _reader.CaptureImageAsync(enrollCts.Token);
+            if (png == null)
             {
-                _enrollments.Remove(userId);
                 await WriteJson(res, new { ok = false, msg = "No se pudo capturar la muestra." }, 422);
                 return;
             }
 
-            if (!_enrollments.ContainsKey(userId))
-                _enrollments[userId] = new Enrollment();
+            var templateBase64 = Convert.ToBase64String(png);
+            var (ok, msg) = await _api.EnrollAsync(userId, templateBase64);
 
-            _enrollments[userId].AddFeatures(features);
-
-            var (templateBase64, isComplete, samplesNeeded) =
-                TemplateMatcher.TryBuildTemplate(_enrollments[userId]);
-
-            if (isComplete && templateBase64 != null)
+            if (ok)
             {
-                _enrollments.Remove(userId);
-                var (ok, msg) = await _api.EnrollAsync(userId, templateBase64);
-                await WriteJson(res,
-                    new { ok, msg = ok ? "Huella enrolada correctamente." : msg,
-                          status = "complete" },
-                    ok ? 200 : 500);
+                // Actualizar cache inmediatamente
+                _matcher.AddToCache(userId, templateBase64);
+                _log.LogInformation("Huella enrolada para user_id={Id}.", userId);
             }
-            else
-            {
-                int collected = _enrollments.ContainsKey(userId)
-                    ? (3 - samplesNeeded) : 0;
-                await WriteJson(res, new {
-                    ok     = true,
-                    status = "collecting",
-                    msg    = $"Muestra {collected + 1} registrada. Coloca el dedo {samplesNeeded} vez(ces) más.",
-                    collected,
-                    needed = samplesNeeded
-                });
-            }
+
+            await WriteJson(res,
+                new { ok, msg = ok ? "Huella enrolada correctamente." : msg, status = "complete" },
+                ok ? 200 : 500);
         }
-        finally
-        {
-            _captureLock.Release();
-        }
+        finally { _captureLock.Release(); }
     }
 
-    // ── Manual scan ───────────────────────────────────────────────────────
+    // ── Scan manual ───────────────────────────────────────────────────────
     private async Task HandleScan(HttpListenerResponse res)
     {
         if (!await _captureLock.WaitAsync(0))
@@ -250,31 +205,31 @@ public sealed class LocalServer : IDisposable
             using var scanCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
             scanCts.CancelAfter(TimeSpan.FromSeconds(15));
 
-            var features = await _reader.CaptureForVerificationAsync(scanCts.Token);
-            if (features == null)
+            var png = await _reader.CaptureImageAsync(scanCts.Token);
+            if (png == null)
             {
                 await WriteJson(res, new { ok = false, msg = "No se pudo leer la huella." }, 422);
                 return;
             }
 
-            var templates = await _api.GetTemplatesAsync();
-            foreach (var (uid, tmpl) in templates)
+            if (_matcher.CacheSize == 0)
             {
-                var bytes = Convert.FromBase64String(tmpl);
-                if (_reader.VerifyOnSta(features!, bytes))
-                {
-                    var (ok, msg) = await _api.VerifyAsync(uid);
-                    await WriteJson(res, new { ok, msg }, ok ? 200 : 403);
-                    return;
-                }
+                var templates = await _api.GetTemplatesAsync();
+                _matcher.ReloadCache(templates.Select(t => (t.Key, t.Value)));
             }
 
-            await WriteJson(res, new { ok = false, msg = "Huella no reconocida." }, 404);
+            var uid = _matcher.Match(png, _log);
+            if (uid.HasValue)
+            {
+                var (ok, msg) = await _api.VerifyAsync(uid.Value);
+                await WriteJson(res, new { ok, msg }, ok ? 200 : 403);
+            }
+            else
+            {
+                await WriteJson(res, new { ok = false, msg = "Huella no reconocida." }, 404);
+            }
         }
-        finally
-        {
-            _captureLock.Release();
-        }
+        finally { _captureLock.Release(); }
     }
 
     static async Task WriteJson(HttpListenerResponse res, object obj, int status = 200)

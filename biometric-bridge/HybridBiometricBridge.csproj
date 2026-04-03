@@ -15,6 +15,7 @@
     <PackageReference Include="Microsoft.Extensions.Hosting"              Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http"                 Version="8.0.0" />
+    <PackageReference Include="SourceAFIS"                                Version="3.7.2" />
   </ItemGroup>
 
   <!-- SDK managed de DigitalPersona (.NET) -->
