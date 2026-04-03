@@ -46,6 +46,26 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                         _capture.EventHandler = this;
                         _verifier = new DPFP.Verification.Verification();
                         _verifier.FARRequested = 100; // 0.1% FAR
+
+                        // Diagnostic: test if the native matching context is functional
+                        try
+                        {
+                            var dummyResult = new DPFP.Verification.Verification.Result();
+                            _verifier.Verify(new FeatureSet(), new Template(), ref dummyResult);
+                            _log.LogInformation("Verifier test: motor OK (no excepción con args vacíos).");
+                        }
+                        catch (System.Runtime.InteropServices.COMException comEx)
+                            when ((uint)comEx.HResult == 0xFFFFFFFE) // DPFJ_E_INVALID_ARG = -2
+                        {
+                            // Expected: empty args rejected = engine IS initialized correctly
+                            _log.LogInformation("Verifier test: motor OK (DPFJ_E_INVALID_ARG esperado con args vacíos).");
+                        }
+                        catch (Exception ex)
+                        {
+                            _log.LogError(ex, "Verifier test FALLÓ — motor de matching no funcional: {Msg} HRESULT={HR:X}",
+                                ex.Message, ex is System.Runtime.InteropServices.COMException c ? (uint)c.HResult : 0);
+                        }
+
                         success = true;
                         _log.LogInformation("Lector DigitalPersona inicializado (STA).");
                     }
