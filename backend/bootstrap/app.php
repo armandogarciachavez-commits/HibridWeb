@@ -22,4 +22,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, Request $request) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         });
+        // Evita crash cuando Sanctum intenta redirigir a route('login') que no existe
+        $exceptions->render(function (\Symfony\Component\Routing\Exception\RouteNotFoundException $e, Request $request) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        });
     })->create();
