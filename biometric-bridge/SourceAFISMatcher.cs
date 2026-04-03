@@ -16,8 +16,8 @@ public sealed class SourceAFISMatcher
     // Cache en memoria: uid → template pre-construido
     private readonly Dictionary<int, FingerprintTemplate> _cache = new();
 
-    // Umbral recomendado por SourceAFIS (40 = ~0.01% FRR)
-    private const double Threshold = 40.0;
+    // Umbral ajustado para hardware con parseo directo (sin SampleConversion oficial)
+    private const double Threshold = 20.0;
 
     public SourceAFISMatcher(ILogger<SourceAFISMatcher> log) => _log = log;
 
@@ -105,7 +105,7 @@ public sealed class SourceAFISMatcher
         foreach (var (uid, candidate) in _cache)
         {
             double score = matcher.Match(candidate);
-            log.LogDebug("  uid={U} score={S:F1}", uid, score);
+            log.LogInformation("  uid={U} score={S:F1}", uid, score);
             if (score > bestScore)
             {
                 bestScore = score;
