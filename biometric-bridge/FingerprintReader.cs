@@ -109,34 +109,64 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
     public bool VerifyOnSta(FeatureSet features, byte[] templateBytes)
     {
         bool result = false;
+
+        // Serialize the FeatureSet on the calling thread so it can be safely
+        // reconstructed on the STA thread (avoids COM apartment boundary issues).
+        byte[] featuresBytes;
         try
         {
-            _form?.Invoke(() =>
+            using var msF = new MemoryStream();
+            features.Serialize(msF);
+            featuresBytes = msF.ToArray();
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "VerifyOnSta: no se pudo serializar FeatureSet");
+            return false;
+        }
+
+        _log.LogInformation(
+            "VerifyOnSta: features={FB}b template={TB}b form={F} verifier={V}",
+            featuresBytes.Length, templateBytes.Length,
+            _form is null ? "NULL" : "OK",
+            _verifier is null ? "NULL" : "OK");
+
+        if (_form is null || _verifier is null) return false;
+
+        try
+        {
+            _form.Invoke(() =>
             {
                 try
                 {
-                    var template = new Template();
-                    using var ms = new MemoryStream(templateBytes);
-                    template.DeSerialize(ms);
-                    _log.LogInformation("Template deserializado OK ({B}b). Verificando...", templateBytes.Length);
+                    // Reconstruct both objects fresh on the STA thread
+                    var featureSet = new FeatureSet();
+                    using var msF = new MemoryStream(featuresBytes);
+                    featureSet.DeSerialize(msF);
 
+                    var template = new Template();
+                    using var msT = new MemoryStream(templateBytes);
+                    template.DeSerialize(msT);
+
+                    _log.LogInformation("VerifyOnSta STA: objetos deserializados, llamando Verify...");
                     var r = new DPFP.Verification.Verification.Result();
-                    _verifier!.Verify(features, template, ref r);
-                    _log.LogInformation("Verify result: {V}", r.Verified);
+                    _verifier!.Verify(featureSet, template, ref r);
+                    _log.LogInformation("VerifyOnSta STA: Verified={V}", r.Verified);
                     result = r.Verified;
                 }
                 catch (Exception ex)
                 {
-                    _log.LogError(ex, "Error en VerifyOnSta interno");
+                    _log.LogError(ex, "VerifyOnSta STA error interno: {Msg}", ex.Message);
                     result = false;
                 }
             });
         }
         catch (Exception ex)
         {
-            _log.LogError(ex, "Error en VerifyOnSta Invoke");
+            _log.LogError(ex, "VerifyOnSta Invoke error: {Msg}", ex.Message);
             result = false;
         }
+
         return result;
     }
 
