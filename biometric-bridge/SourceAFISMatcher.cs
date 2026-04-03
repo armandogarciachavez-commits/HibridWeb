@@ -1,3 +1,6 @@
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using SourceAFIS;
 
 namespace HybridBiometricBridge;
@@ -54,7 +57,30 @@ public sealed class SourceAFISMatcher
 
     /// <summary>Construye un FingerprintTemplate desde bytes PNG de la imagen.</summary>
     public static FingerprintTemplate BuildTemplate(byte[] imagePng)
-        => new FingerprintTemplate(new FingerprintImage(imagePng));
+    {
+        using var ms  = new MemoryStream(imagePng);
+        using var bmp = new Bitmap(ms);
+
+        int w = bmp.Width, h = bmp.Height;
+
+        // Convierte a escala de grises 8-bit para SourceAFIS
+        var pixels = new byte[w * h];
+        var rect   = new Rectangle(0, 0, w, h);
+        using var bmp24 = bmp.Clone(rect, PixelFormat.Format24bppRgb);
+        var bd = bmp24.LockBits(rect, ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+        var row = new byte[Math.Abs(bd.Stride)];
+        for (int y = 0; y < h; y++)
+        {
+            Marshal.Copy(bd.Scan0 + y * bd.Stride, row, 0, row.Length);
+            for (int x = 0; x < w; x++)
+                pixels[y * w + x] = (byte)((row[x * 3] + row[x * 3 + 1] + row[x * 3 + 2]) / 3);
+        }
+        bmp24.UnlockBits(bd);
+
+        var img = new FingerprintImage(w, h, pixels,
+            new FingerprintImageOptions { Dpi = 500 });
+        return new FingerprintTemplate(img);
+    }
 
     /// <summary>
     /// Compara la huella capturada (PNG) contra todos los templates en cache.

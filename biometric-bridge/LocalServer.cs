@@ -64,7 +64,7 @@ public sealed class LocalServer : IDisposable
                 if (_matcher.CacheSize == 0)
                 {
                     var templates = await _api.GetTemplatesAsync();
-                    _matcher.ReloadCache(templates.Select(t => (t.Key, t.Value)));
+                    _matcher.ReloadCache(templates);
                 }
 
                 var matchedId = _matcher.Match(probePng, _log);
@@ -215,7 +215,7 @@ public sealed class LocalServer : IDisposable
             if (_matcher.CacheSize == 0)
             {
                 var templates = await _api.GetTemplatesAsync();
-                _matcher.ReloadCache(templates.Select(t => (t.Key, t.Value)));
+                _matcher.ReloadCache(templates);
             }
 
             var uid = _matcher.Match(png, _log);
