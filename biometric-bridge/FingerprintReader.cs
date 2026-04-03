@@ -76,16 +76,27 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
     {
         if (_capture == null || _form == null) return Task.FromResult<byte[]?>(null);
 
-        _tcs = new TaskCompletionSource<byte[]?>();
-        _form.Invoke(() => _capture.StartCapture());
+        var tcs = new TaskCompletionSource<byte[]?>();
+        _tcs = tcs;
+
+        try
+        {
+            _form.Invoke(() => _capture.StartCapture());
+        }
+        catch (Exception ex)
+        {
+            _tcs = null;
+            _log.LogError(ex, "StartCapture falló: {Msg}", ex.Message);
+            return Task.FromResult<byte[]?>(null);
+        }
 
         var reg = ct.Register(() =>
         {
             try { _form?.Invoke(() => _capture?.StopCapture()); } catch { }
-            _tcs?.TrySetResult(null);
+            tcs.TrySetResult(null);
         });
 
-        return _tcs.Task.ContinueWith(t => { reg.Dispose(); return t.Result; });
+        return tcs.Task.ContinueWith(t => { reg.Dispose(); return t.Result; });
     }
 
     public void AbortCapture()

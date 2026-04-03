@@ -21,7 +21,11 @@ public sealed class SourceAFISMatcher
 
     public SourceAFISMatcher(ILogger<SourceAFISMatcher> log) => _log = log;
 
-    /// <summary>Recarga el cache desde la lista de templates (base64 de PNG).</summary>
+    /// <summary>
+    /// Recarga el cache desde la lista de templates almacenados.
+    /// Soporta tanto templates serializados de SourceAFIS (v2, compactos)
+    /// como PNG legacy (v1, grandes) para compatibilidad hacia atrás.
+    /// </summary>
     public void ReloadCache(IEnumerable<(int uid, string base64)> templates)
     {
         _cache.Clear();
@@ -29,8 +33,10 @@ public sealed class SourceAFISMatcher
         {
             try
             {
-                var png  = Convert.FromBase64String(b64);
-                _cache[uid] = BuildTemplate(png);
+                var bytes = Convert.FromBase64String(b64);
+                _cache[uid] = bytes.Length > 50_000
+                    ? BuildTemplate(bytes)                          // v1: PNG image
+                    : FingerprintTemplate.FromByteArray(bytes);     // v2: SourceAFIS serialized
             }
             catch (Exception ex)
             {
@@ -45,14 +51,26 @@ public sealed class SourceAFISMatcher
     {
         try
         {
-            var png    = Convert.FromBase64String(base64);
-            _cache[uid] = BuildTemplate(png);
-            _log.LogInformation("Template uid={U} agregado al cache.", uid);
+            var bytes = Convert.FromBase64String(base64);
+            _cache[uid] = bytes.Length > 50_000
+                ? BuildTemplate(bytes)
+                : FingerprintTemplate.FromByteArray(bytes);
+            _log.LogInformation("Template uid={U} agregado al cache ({KB}KB).", uid, bytes.Length / 1024);
         }
         catch (Exception ex)
         {
             _log.LogWarning("AddToCache uid={U}: {M}", uid, ex.Message);
         }
+    }
+
+    /// <summary>
+    /// Construye un template desde imagen PNG y lo serializa a bytes compactos (1-5KB).
+    /// Usar este base64 para almacenar en la DB.
+    /// </summary>
+    public static string BuildAndSerialize(byte[] imagePng)
+    {
+        var template = BuildTemplate(imagePng);
+        return Convert.ToBase64String(template.ToByteArray());
     }
 
     /// <summary>Construye un FingerprintTemplate desde bytes PNG de la imagen.</summary>

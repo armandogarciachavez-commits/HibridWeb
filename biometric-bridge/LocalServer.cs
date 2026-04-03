@@ -174,7 +174,9 @@ public sealed class LocalServer : IDisposable
                 return;
             }
 
-            var templateBase64 = Convert.ToBase64String(png);
+            // Serializa el template SourceAFIS (1-5KB) en lugar del PNG crudo (~200KB)
+            var templateBase64 = SourceAFISMatcher.BuildAndSerialize(png);
+            _log.LogInformation("Template serializado: {KB}KB", templateBase64.Length / 1024);
             var (ok, msg) = await _api.EnrollAsync(userId, templateBase64);
 
             if (ok)
