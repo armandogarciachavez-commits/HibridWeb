@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { UserPlus, Fingerprint, Search, Users as UsersIcon, UserCheck, History } from 'lucide-react';
 import { useToast } from '../components/ui/ToastContext';
 import Spinner from '../components/ui/Spinner';
@@ -74,6 +74,43 @@ const Users = () => {
       setEnrollMsg(err.name === 'AbortError' ? 'Tiempo de espera agotado (30s). Intenta de nuevo.' : 'Error de conexión con el bridge.');
     }
   };
+
+  // Estado cámara webcam
+  const [showCamera, setShowCamera]     = useState(false);
+  const [cameraError, setCameraError]   = useState('');
+  const videoRef                        = useRef<HTMLVideoElement>(null);
+  const streamRef                       = useRef<MediaStream | null>(null);
+
+  const startCamera = useCallback(async () => {
+    setCameraError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+      streamRef.current = stream;
+      if (videoRef.current) videoRef.current.srcObject = stream;
+    } catch {
+      setCameraError('No se pudo acceder a la cámara. Verifica los permisos del navegador.');
+    }
+  }, []);
+
+  const stopCamera = useCallback(() => {
+    streamRef.current?.getTracks().forEach(t => t.stop());
+    streamRef.current = null;
+  }, []);
+
+  const capturePhoto = useCallback(() => {
+    if (!videoRef.current) return;
+    const canvas = document.createElement('canvas');
+    canvas.width  = videoRef.current.videoWidth  || 640;
+    canvas.height = videoRef.current.videoHeight || 480;
+    canvas.getContext('2d')!.drawImage(videoRef.current, 0, 0);
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const file = new File([blob], 'foto-socio.jpg', { type: 'image/jpeg' });
+      setNewUser((u: any) => ({ ...u, photo: file }));
+      stopCamera();
+      setShowCamera(false);
+    }, 'image/jpeg', 0.85);
+  }, [stopCamera]);
 
   // State variables for manual renewal
   const [manualPlan, setManualPlan] = useState('mensual');
@@ -367,9 +404,7 @@ const Users = () => {
                       )}
                    </div>
                    <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
-                     <button type="button" className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '5px' }} onClick={() => {
-                        alert("Iniciando conexión interactiva con la Webcam (En desarrollo)...");
-                     }}>
+                     <button type="button" className="btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', gap: '5px' }} onClick={() => { setShowCamera(true); setTimeout(startCamera, 100); }}>
                         <span style={{ fontSize: '1.2rem' }}>📷</span>
                         Tomar Foto
                      </button>
@@ -666,9 +701,29 @@ const Users = () => {
         </div>
       )}
 
-      <ConfirmModal 
-        isOpen={confirmModal.isOpen} 
-        title="Eliminar Socio Definitivamente" 
+      {/* Modal Cámara */}
+      {showCamera && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', zIndex: 200, gap: '20px' }}>
+          <h3 style={{ color: '#fff', margin: 0 }}>Tomar Fotografía</h3>
+          {cameraError ? (
+            <p style={{ color: '#ff4444', textAlign: 'center', maxWidth: '400px' }}>{cameraError}</p>
+          ) : (
+            <video ref={videoRef} autoPlay playsInline muted style={{ width: '100%', maxWidth: '480px', borderRadius: '12px', border: '2px solid var(--primary)', background: '#000' }} />
+          )}
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <button className="btn" style={{ padding: '12px 30px', fontSize: '1rem' }} onClick={capturePhoto} disabled={!!cameraError}>
+              📸 Capturar
+            </button>
+            <button className="btn-secondary" style={{ padding: '12px 30px' }} onClick={() => { stopCamera(); setShowCamera(false); setCameraError(''); }}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title="Eliminar Socio Definitivamente"
         message="⚠️ ¡Peligro! ¿Estás seguro de que deseas ELIMINAR este socio permanentemente? Se borrará todo su historial, accesos y pagos. Esta acción no se puede deshacer."
         confirmText="Eliminar Permanentemente"
         onConfirm={executeDelete}
