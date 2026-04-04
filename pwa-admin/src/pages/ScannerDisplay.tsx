@@ -57,7 +57,7 @@ const ScannerDisplay = () => {
     }}>
       {!recentScan || !recentScan.user ? (
         <div style={{ textAlign: 'center', animation: 'fadeIn 1s ease' }}>
-           <h1 style={{ color: '#444', fontSize: '4rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '5px' }}>ESPERANDO LECTURA</h1>
+           <h1 style={{ color: '#444', fontSize: '4rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '5px' }}>Bienvenido a HybridTraining</h1>
            <p style={{ color: '#333', fontSize: '1.5rem', marginTop: '20px' }}>Por favor, coloque su huella en el lector</p>
         </div>
       ) : (
