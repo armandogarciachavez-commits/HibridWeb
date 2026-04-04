@@ -96,7 +96,7 @@ class BiometricController extends Controller
                 })->with('classSession.gymClass');
             }
         ])
-        ->where('created_at', '>=', now()->subMinutes(5))
+        ->where('created_at', '>=', now()->subSeconds(30))
         ->orderBy('scanned_at', 'desc')
         ->first();
 
