@@ -5,6 +5,8 @@ import Spinner from '../components/ui/Spinner';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { apiFetch } from '../lib/api';
 
+const BRIDGE_URL = 'http://localhost:7071';
+
 const Users = () => {
   const { addToast } = useToast();
   const [showModal, setShowModal] = useState(false);
@@ -22,6 +24,57 @@ const Users = () => {
   // Confirm Modal State
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, userId: null as number | null });
   
+  // Estado enrolamiento biométrico
+  const [enrollStatus, setEnrollStatus] = useState<'idle'|'waiting'|'success'|'error'>('idle');
+  const [enrollMsg, setEnrollMsg]       = useState('');
+
+  const handleEnrollFingerprint = async () => {
+    if (!newUser.id) {
+      addToast("Guarda primero los datos del socio antes de capturar la huella.", "warning");
+      return;
+    }
+    try {
+      const res = await fetch(`${BRIDGE_URL}/status`, { signal: AbortSignal.timeout(3000) });
+      const data = await res.json();
+      if (!data.ready) {
+        setEnrollStatus('error');
+        setEnrollMsg('El lector no está listo. Verifica que el bridge esté corriendo y el lector conectado.');
+        return;
+      }
+    } catch {
+      setEnrollStatus('error');
+      setEnrollMsg('Bridge no disponible. Asegúrate de que HybridBiometricBridge.exe esté corriendo en esta PC.');
+      return;
+    }
+
+    setEnrollStatus('waiting');
+    setEnrollMsg('Pide al socio que coloque el dedo en el lector...');
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 30_000);
+      const res = await fetch(`${BRIDGE_URL}/enroll`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: newUser.id }),
+        signal: controller.signal,
+      });
+      clearTimeout(timer);
+      const result = await res.json();
+      if (result.ok) {
+        setEnrollStatus('success');
+        setEnrollMsg('✅ Huella enrolada correctamente.');
+        fetchUsers();
+      } else {
+        setEnrollStatus('error');
+        setEnrollMsg(result.msg || 'Error al enrolar la huella.');
+      }
+    } catch (err: any) {
+      setEnrollStatus('error');
+      setEnrollMsg(err.name === 'AbortError' ? 'Tiempo de espera agotado (30s). Intenta de nuevo.' : 'Error de conexión con el bridge.');
+    }
+  };
+
   // State variables for manual renewal
   const [manualPlan, setManualPlan] = useState('mensual');
   const [manualStart, setManualStart] = useState(new Date().toISOString().split('T')[0]);
@@ -132,6 +185,8 @@ const Users = () => {
 
   const handleEditClick = (user: any) => {
       setSelectedUser(null);
+      setEnrollStatus('idle');
+      setEnrollMsg('');
       setNewUser({
           id: user.id,
           name: user.name,
@@ -385,18 +440,23 @@ const Users = () => {
                      </label>
                    </div>
                    
-                   <div style={{ width: '100%', padding: '20px', background: 'rgba(0,102,255,0.05)', border: '1px solid var(--primary)', borderRadius: '8px', textAlign: 'center', marginTop: 'auto' }}>
-                      <Fingerprint size={40} color="var(--primary)" style={{ marginBottom: '10px' }} />
+                   <div style={{ width: '100%', padding: '20px', background: 'rgba(0,102,255,0.05)', border: `1px solid ${enrollStatus === 'success' ? '#00cc66' : enrollStatus === 'error' ? '#ff4444' : 'var(--primary)'}`, borderRadius: '8px', textAlign: 'center', marginTop: 'auto' }}>
+                      <Fingerprint size={40} color={enrollStatus === 'success' ? '#00cc66' : enrollStatus === 'error' ? '#ff4444' : 'var(--primary)'} style={{ marginBottom: '10px' }} />
                       <h4 style={{ color: 'var(--primary)', marginBottom: '5px' }}>Huella Digital</h4>
-                      <p style={{ color: 'var(--secondary)', fontSize: '0.85rem', marginBottom: '15px' }}>Registrar huella para control de acceso.</p>
-                      <button type="button" className="btn" style={{ width: '100%' }} onClick={() => {
-                         if (!newUser.id) {
-                             alert("⚠️ Primero debes guardar los datos del socio para poder asignarle una huella digital.");
-                         } else {
-                             alert("Iniciando escáner de huellas en Windows... (Módulo biométrico conectando)");
-                         }
-                      }}>
-                         👆 Capturar Huella
+                      <p style={{ color: 'var(--secondary)', fontSize: '0.85rem', marginBottom: '10px' }}>Registrar huella para control de acceso.</p>
+                      {enrollStatus !== 'idle' && (
+                        <p style={{ fontSize: '0.82rem', marginBottom: '10px', color: enrollStatus === 'success' ? '#00cc66' : enrollStatus === 'error' ? '#ff4444' : '#ff9900', fontWeight: 500 }}>
+                          {enrollMsg}
+                        </p>
+                      )}
+                      <button
+                        type="button"
+                        className="btn"
+                        style={{ width: '100%', opacity: enrollStatus === 'waiting' ? 0.6 : 1 }}
+                        disabled={enrollStatus === 'waiting'}
+                        onClick={handleEnrollFingerprint}
+                      >
+                        {enrollStatus === 'waiting' ? '⏳ Esperando huella...' : '👆 Capturar Huella'}
                       </button>
                    </div>
                 </div>
