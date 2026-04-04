@@ -119,7 +119,7 @@ const Dashboard = () => {
                 {recentScan && recentScan.user ? (recentScan.status === 'granted' ? `¡Bienvenido, ${recentScan.user.name.split(' ')[0]}!` : 'Acceso Denegado') : 'ESPERANDO ACCESO'}
               </h2>
               <p style={{ color: 'var(--secondary)', fontSize: '0.9rem', marginTop: '5px' }}>
-                {recentScan && recentScan.user ? `Escaneo detectado a las ${new Date(recentScan.created_at).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'America/Mexico_City' })}` : 'Acerca tu huella al lector para registrar tu entrada'}
+                {recentScan && recentScan.user ? `Escaneo detectado a las ${recentScan.scanned_at?.split(' ')[1]?.substring(0, 8) ?? ''}` : 'Acerca tu huella al lector para registrar tu entrada'}
               </p>
             </div>
 
