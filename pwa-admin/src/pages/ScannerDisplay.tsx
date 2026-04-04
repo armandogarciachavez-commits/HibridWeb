@@ -14,13 +14,19 @@ const ScannerDisplay = () => {
     return <Activity size={size} color={color} />;
   };
 
+  // Auto-fullscreen al entrar, salir al desmontar
+  useEffect(() => {
+    const el = document.documentElement;
+    if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
+    return () => { if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
+  }, []);
+
   useEffect(() => {
     const fetchRecentScan = async () => {
       try {
         const res = await apiFetch('/admin/scans/recent');
         if (res.ok) {
           const data = await res.json();
-          // Solo actualizamos si hay un cambio real
           if (data && data.id) {
             setRecentScan(data);
           } else {
@@ -32,7 +38,7 @@ const ScannerDisplay = () => {
       }
     };
     fetchRecentScan();
-    const interval = setInterval(fetchRecentScan, 2000); // 2 segundos para máxima velocidad
+    const interval = setInterval(fetchRecentScan, 2000);
     return () => clearInterval(interval);
   }, []);
 
