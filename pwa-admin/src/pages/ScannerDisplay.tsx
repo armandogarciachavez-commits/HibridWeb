@@ -84,10 +84,10 @@ const ScannerDisplay = () => {
           <div style={{ display: 'flex', gap: '50px', alignItems: 'stretch' }}>
             {/* Left: Photo & Basic Info */}
             <div style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px' }}>
-              <img 
-                src={recentScan.user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(recentScan.user.name)}&background=random&color=fff&size=500`} 
-                alt={recentScan.user.name} 
-                style={{ width: '250px', height: '250px', borderRadius: '50%', border: '6px solid #444', objectFit: 'cover' }} 
+              <img
+                src={recentScan.user.photo_url || recentScan.user.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(recentScan.user.name)}&background=random&color=fff&size=500`}
+                alt={recentScan.user.name}
+                style={{ width: '250px', height: '250px', borderRadius: '50%', border: `6px solid ${recentScan.status === 'granted' ? '#00cc66' : '#ff4444'}`, objectFit: 'cover' }}
               />
               <div style={{ textAlign: 'center' }}>
                 <h3 style={{ fontSize: '2.5rem', color: '#fff', margin: '0 0 10px 0', fontWeight: 'bold' }}>{recentScan.user.name}</h3>
