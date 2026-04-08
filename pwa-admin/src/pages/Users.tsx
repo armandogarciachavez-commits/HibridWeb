@@ -15,7 +15,7 @@ const Users = () => {
   const [users, setUsers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
-  const [newUser, setNewUser] = useState<any>({ id: null, name: '', username: '', email: '', phone: '', address: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' });
+  const [newUser, setNewUser] = useState<any>({ id: null, name: '', username: '', email: '', phone: '', address: '', birthdate: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' });
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -155,6 +155,7 @@ const Users = () => {
       if (newUser.email) formData.append('email', newUser.email);
       formData.append('phone', newUser.phone);
       formData.append('address', newUser.address);
+      if (newUser.birthdate) formData.append('birthdate', newUser.birthdate);
       if (newUser.emergencyName) formData.append('emergency_contact_name', newUser.emergencyName);
       if (newUser.emergencyPhone) formData.append('emergency_contact_phone', newUser.emergencyPhone);
       
@@ -179,7 +180,7 @@ const Users = () => {
       if (res.ok) {
         addToast(isEdit ? `Información de ${newUser.name} actualizada.` : `Socio ${newUser.name} registrado en Base de Datos.`, "success");
         setShowModal(false);
-        setNewUser({ id: null, name: '', username: '', email: '', phone: '', address: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' });
+        setNewUser({ id: null, name: '', username: '', email: '', phone: '', address: '', birthdate: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' });
         fetchUsers();
       } else {
         const errorData = await res.json();
@@ -231,6 +232,7 @@ const Users = () => {
           email: user.email || '',
           phone: user.phone || '',
           address: user.address || '',
+          birthdate: user.birthdate || '',
           password: '',
           emergencyName: user.emergency_contact_name || '',
           emergencyPhone: user.emergency_contact_phone || '',
@@ -302,7 +304,7 @@ const Users = () => {
             />
           </div>
           <button className="btn" onClick={() => { 
-            setNewUser({ id: null, name: '', username: '', email: '', phone: '', address: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' }); 
+            setNewUser({ id: null, name: '', username: '', email: '', phone: '', address: '', birthdate: '', password: '', emergencyName: '', emergencyPhone: '', planType: 'none', photo: '' }); 
             setShowModal(true); 
           }}>
             <UserPlus size={18} /> Nuevo Socio
@@ -519,6 +521,10 @@ const Users = () => {
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--secondary)', fontSize: '0.9rem' }}>Dirección Completa*</label>
                     <input required type="text" value={newUser.address} onChange={e => setNewUser({...newUser, address: e.target.value})} style={{ width: '100%', padding: '10px', background: 'var(--background)', color: 'var(--text)', border: '1px solid #333', borderRadius: '4px' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', color: 'var(--secondary)', fontSize: '0.9rem' }}>Fecha de Nacimiento</label>
+                    <input type="date" value={newUser.birthdate} onChange={e => setNewUser({...newUser, birthdate: e.target.value})} style={{ width: '100%', padding: '10px', background: 'var(--background)', color: 'var(--text)', border: '1px solid #333', borderRadius: '4px' }} />
                   </div>
                   <div>
                     <label style={{ display: 'block', marginBottom: '8px', color: 'var(--secondary)', fontSize: '0.9rem' }}>{newUser.id ? 'Cambiar Contraseña (Dejar en blanco para omitir)' : 'Contraseña PWA*'}</label>

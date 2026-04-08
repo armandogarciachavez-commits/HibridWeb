@@ -37,6 +37,7 @@ class AdminController extends Controller
             'emergency_contact_phone' => 'required|string|max:255',
             'plan_type' => 'nullable|string',
             'photo' => 'nullable|file|extensions:jpg,jpeg,png,webp|max:4096',
+            'birthdate' => 'nullable|date',
         ]);
 
         $adminId = $request->user()?->id;
@@ -47,6 +48,7 @@ class AdminController extends Controller
             'email' => $request->email ?? null,
             'phone' => $request->phone,
             'address' => $request->address,
+            'birthdate' => $request->birthdate ?? null,
             'password' => Hash::make($request->password),
             'emergency_contact_name' => $request->emergency_contact_name ?? null,
             'emergency_contact_phone' => $request->emergency_contact_phone ?? null,
@@ -95,8 +97,9 @@ class AdminController extends Controller
             'address' => 'required|string',
             'emergency_contact_name' => 'required|string|max:255',
             'emergency_contact_phone' => 'required|string|max:255',
-            'password' => 'nullable|string|min:6', // Optional password update
+            'password' => 'nullable|string|min:6',
             'photo' => 'nullable|file|extensions:jpg,jpeg,png,webp|max:4096',
+            'birthdate' => 'nullable|date',
         ]);
 
         $updateData = [
@@ -105,6 +108,7 @@ class AdminController extends Controller
             'email' => $request->email ?? null,
             'phone' => $request->phone,
             'address' => $request->address,
+            'birthdate' => $request->birthdate ?? null,
             'emergency_contact_name' => $request->emergency_contact_name,
             'emergency_contact_phone' => $request->emergency_contact_phone,
         ];
