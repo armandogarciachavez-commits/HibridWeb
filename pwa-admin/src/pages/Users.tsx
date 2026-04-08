@@ -533,7 +533,7 @@ const Users = () => {
                   {!newUser.id && (
                     <div>
                       <label style={{ display: 'block', marginBottom: '8px', color: 'var(--secondary)', fontSize: '0.9rem' }}>Plan Inicial (Asignación Inmediata)</label>
-                      <select value={newUser.planType} onChange={e => setNewUser({...newUser, planType: e.target.value})} style={{ width: '100%', padding: '10px', background: 'var(--background)', color: 'var(--text)', border: '1px solid #333', borderRadius: '4px' }}>
+                      <select value={newUser.planType} onChange={e => setNewUser({...newUser, planType: e.target.value})} style={{ width: '100%', padding: '10px', background: 'var(--background)', color: 'var(--text)', border: '1px solid #333', borderRadius: '4px', height: '42px', boxSizing: 'border-box' }}>
                         <option value="none">Ninguno (Inscripción Base)</option>
                         <option value="mensual">Mensualidad ($1,100)</option>
                         <option value="bimestre">Bimestre ($2,100)</option>
