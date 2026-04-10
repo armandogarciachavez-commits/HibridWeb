@@ -81,11 +81,19 @@ public sealed class ApiClient
     {
         try
         {
-            var res = await _http.PostAsJsonAsync($"{_base}/api/biometric/verify",
-                new { user_id = userId });
+            var payload = JsonSerializer.Serialize(new { user_id = userId });
+            _log.LogInformation("VerifyAsync → user_id={U}", userId);
+            var content = new StringContent(payload, Encoding.UTF8, "application/json");
+            var res = await _http.PostAsync($"{_base}/api/biometric/verify", content);
 
-            var body = await res.Content.ReadFromJsonAsync<JsonElement>();
-            string msg = body.TryGetProperty("message", out var m) ? m.GetString()! : "";
+            var rawBody = await res.Content.ReadAsStringAsync();
+            _log.LogInformation("VerifyAsync ← HTTP {S}: {B}", (int)res.StatusCode, rawBody);
+
+            JsonElement body;
+            try { body = JsonSerializer.Deserialize<JsonElement>(rawBody); }
+            catch { return (res.IsSuccessStatusCode, rawBody); }
+
+            string msg = body.TryGetProperty("message", out var m) ? m.GetString()! : rawBody;
             return (res.IsSuccessStatusCode, msg);
         }
         catch (Exception ex)
