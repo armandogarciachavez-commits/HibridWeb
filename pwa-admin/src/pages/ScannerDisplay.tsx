@@ -77,7 +77,7 @@ const ScannerDisplay = () => {
               {recentScan.status === 'granted' ? `¡BIENVENIDO, ${recentScan.user.name.split(' ')[0]}!` : 'ACCESO DENEGADO'}
             </h2>
             <p style={{ color: '#888', fontSize: '1.5rem', marginTop: '10px' }}>
-              {recentScan.scanned_at?.split(' ')[1]?.substring(0, 8) ?? ''}
+              {recentScan.scanned_at ? new Date(recentScan.scanned_at.replace(' ', 'T') + 'Z').toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) : ''}
             </p>
           </div>
 
