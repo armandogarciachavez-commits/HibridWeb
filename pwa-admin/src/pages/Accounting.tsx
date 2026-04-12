@@ -357,9 +357,19 @@ export default function Accounting() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '1rem' }}>Productos en inventario</h3>
-            <button className="btn" onClick={() => { setEditProduct(null); setProductForm(emptyProduct); setShowProductModal(true); }}>
-              <Plus size={16} /> Agregar producto
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn-secondary" onClick={async () => {
+                const res = await apiFetch('/admin/products/generate', { method: 'POST' });
+                const data = await res.json();
+                addToast(data.message, res.ok ? 'success' : 'error');
+                if (res.ok && data.created > 0) fetchProducts();
+              }}>
+                <BookOpen size={15} /> Generar catálogo base
+              </button>
+              <button className="btn" onClick={() => { setEditProduct(null); setProductForm(emptyProduct); setShowProductModal(true); }}>
+                <Plus size={16} /> Agregar producto
+              </button>
+            </div>
           </div>
           {products.filter(p => p.is_active).length === 0 ? (
             <p style={{ color: 'var(--secondary)', fontStyle: 'italic' }}>Sin productos registrados.</p>
@@ -506,9 +516,19 @@ export default function Accounting() {
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h3 style={{ margin: 0, fontSize: '1rem' }}>Catálogo de conceptos</h3>
-            <button className="btn" onClick={() => { setEditConcept(null); setConceptForm(emptyConcept); setShowConceptModal(true); }}>
-              <Plus size={16} /> Agregar concepto
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn-secondary" onClick={async () => {
+                const res = await apiFetch('/admin/accounting/concepts/generate', { method: 'POST' });
+                const data = await res.json();
+                addToast(data.message, res.ok ? 'success' : 'error');
+                if (res.ok && data.created > 0) fetchConcepts();
+              }}>
+                <BookOpen size={15} /> Generar catálogo base
+              </button>
+              <button className="btn" onClick={() => { setEditConcept(null); setConceptForm(emptyConcept); setShowConceptModal(true); }}>
+                <Plus size={16} /> Agregar concepto
+              </button>
+            </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
             {(['ingreso', 'egreso'] as const).map(type => (

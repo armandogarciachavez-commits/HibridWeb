@@ -78,17 +78,19 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::get('/admin/accounting/report',              [AccountingController::class, 'report']);
 
     // Contabilidad — Conceptos
-    Route::get('/admin/accounting/concepts',            [AccountingConceptController::class, 'index']);
-    Route::post('/admin/accounting/concepts',           [AccountingConceptController::class, 'store']);
-    Route::put('/admin/accounting/concepts/{id}',       [AccountingConceptController::class, 'update']);
-    Route::delete('/admin/accounting/concepts/{id}',    [AccountingConceptController::class, 'destroy']);
+    Route::get('/admin/accounting/concepts',               [AccountingConceptController::class, 'index']);
+    Route::post('/admin/accounting/concepts',              [AccountingConceptController::class, 'store']);
+    Route::post('/admin/accounting/concepts/generate',     [AccountingConceptController::class, 'generateCatalog']);
+    Route::put('/admin/accounting/concepts/{id}',          [AccountingConceptController::class, 'update']);
+    Route::delete('/admin/accounting/concepts/{id}',       [AccountingConceptController::class, 'destroy']);
 
     // Inventario de Productos
-    Route::get('/admin/products',                       [ProductController::class, 'index']);
-    Route::post('/admin/products',                      [ProductController::class, 'store']);
-    Route::put('/admin/products/{id}',                  [ProductController::class, 'update']);
-    Route::delete('/admin/products/{id}',               [ProductController::class, 'destroy']);
-    Route::patch('/admin/products/{id}/stock',          [ProductController::class, 'adjustStock']);
+    Route::get('/admin/products',                          [ProductController::class, 'index']);
+    Route::post('/admin/products',                         [ProductController::class, 'store']);
+    Route::post('/admin/products/generate',                [ProductController::class, 'generateCatalog']);
+    Route::put('/admin/products/{id}',                     [ProductController::class, 'update']);
+    Route::delete('/admin/products/{id}',                  [ProductController::class, 'destroy']);
+    Route::patch('/admin/products/{id}/stock',             [ProductController::class, 'adjustStock']);
 
 // ─── Super Administrador ──────────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'superadmin'])->group(function () {
