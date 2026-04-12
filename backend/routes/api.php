@@ -8,6 +8,9 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\AccountingController;
+use App\Http\Controllers\AccountingConceptController;
+use App\Http\Controllers\ProductController;
 
 // ─── Rutas públicas ───────────────────────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -67,6 +70,25 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::patch('/admin/announcements/{id}/toggle', [AnnouncementController::class, 'toggle']);
     Route::delete('/admin/announcements/{id}', [AnnouncementController::class, 'destroy']);
 });
+
+    // Contabilidad — Entradas
+    Route::get('/admin/accounting/today',               [AccountingController::class, 'indexToday']);
+    Route::post('/admin/accounting/entries',            [AccountingController::class, 'store']);
+    Route::delete('/admin/accounting/entries/{id}',     [AccountingController::class, 'destroy']);
+    Route::get('/admin/accounting/report',              [AccountingController::class, 'report']);
+
+    // Contabilidad — Conceptos
+    Route::get('/admin/accounting/concepts',            [AccountingConceptController::class, 'index']);
+    Route::post('/admin/accounting/concepts',           [AccountingConceptController::class, 'store']);
+    Route::put('/admin/accounting/concepts/{id}',       [AccountingConceptController::class, 'update']);
+    Route::delete('/admin/accounting/concepts/{id}',    [AccountingConceptController::class, 'destroy']);
+
+    // Inventario de Productos
+    Route::get('/admin/products',                       [ProductController::class, 'index']);
+    Route::post('/admin/products',                      [ProductController::class, 'store']);
+    Route::put('/admin/products/{id}',                  [ProductController::class, 'update']);
+    Route::delete('/admin/products/{id}',               [ProductController::class, 'destroy']);
+    Route::patch('/admin/products/{id}/stock',          [ProductController::class, 'adjustStock']);
 
 // ─── Super Administrador ──────────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'superadmin'])->group(function () {
