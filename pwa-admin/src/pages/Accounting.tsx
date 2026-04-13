@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { TrendingUp, TrendingDown, Activity, Plus, Trash2, Edit2, Package, BookOpen, BarChart2, Tag, ChevronDown, ChevronUp } from 'lucide-react';
+import { TrendingUp, TrendingDown, Activity, Plus, Trash2, Edit2, Package, BookOpen, BarChart2, Tag, ChevronDown, ChevronUp, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { apiFetch } from '../lib/api';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { useToast } from '../components/ui/ToastContext';
@@ -262,6 +263,65 @@ export default function Accounting() {
 
   useEffect(() => { if (tab === 'reportes' && !report) handleReport(); }, [tab]);
 
+  // ── Exportar Excel ───────────────────────────────────────────────────────────
+  const exportToExcel = () => {
+    if (!report) return;
+
+    const periodLabel = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual' }[report.period] ?? report.period;
+    const fileName    = `Reporte_${periodLabel}_${report.from}_${report.to}.xlsx`;
+    const wb          = XLSX.utils.book_new();
+
+    // ── Hoja 1: Resumen ──
+    const resumenData = [
+      ['REPORTE DE CONTABILIDAD — ALFA HYBRID TRAINING'],
+      [],
+      ['Período',   periodLabel],
+      ['Desde',     report.from],
+      ['Hasta',     report.to],
+      [],
+      ['RESUMEN',   ''],
+      ['Total Ingresos', report.total_ingresos],
+      ['Total Egresos',  report.total_egresos],
+      ['Balance',        report.balance],
+    ];
+    const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+    wsResumen['!cols'] = [{ wch: 22 }, { wch: 18 }];
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+    // ── Hoja 2: Por Concepto ──
+    const conceptRows = [
+      ['Concepto', 'Tipo', 'Movimientos', 'Total ($)'],
+      ...report.by_concept.map(c => [c.concept, c.type.toUpperCase(), c.count, c.total]),
+      [],
+      ['', '', 'INGRESOS', report.total_ingresos],
+      ['', '', 'EGRESOS',  report.total_egresos],
+      ['', '', 'BALANCE',  report.balance],
+    ];
+    const wsConcept = XLSX.utils.aoa_to_sheet(conceptRows);
+    wsConcept['!cols'] = [{ wch: 26 }, { wch: 10 }, { wch: 14 }, { wch: 14 }];
+    XLSX.utils.book_append_sheet(wb, wsConcept, 'Por Concepto');
+
+    // ── Hoja 3: Detalle de Entradas ──
+    const entryRows = [
+      ['Fecha', 'Tipo', 'Concepto', 'Tipo Entrada', 'Producto', 'Cant.', 'Monto ($)', 'Notas'],
+      ...report.entries.map(e => [
+        e.entry_date,
+        e.type.toUpperCase(),
+        e.concept?.name ?? '',
+        e.entry_type === 'product_sale' ? 'Venta producto' : 'Manual',
+        e.product?.name ?? '',
+        e.product_qty ?? '',
+        Number(e.amount),
+        e.notes ?? '',
+      ]),
+    ];
+    const wsEntries = XLSX.utils.aoa_to_sheet(entryRows);
+    wsEntries['!cols'] = [{ wch: 12 }, { wch: 10 }, { wch: 24 }, { wch: 16 }, { wch: 20 }, { wch: 6 }, { wch: 12 }, { wch: 28 }];
+    XLSX.utils.book_append_sheet(wb, wsEntries, 'Detalle');
+
+    XLSX.writeFile(wb, fileName);
+  };
+
   // ─────────────────────────────────────────────────────────────────────────────
   const tabStyle = (active: boolean) => ({
     padding: '10px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem',
@@ -438,6 +498,11 @@ export default function Accounting() {
             <button className="btn" onClick={handleReport} style={{ marginBottom: '0' }}>
               {loadingReport ? 'Generando...' : 'Generar reporte'}
             </button>
+            {report && (
+              <button className="btn-secondary" onClick={exportToExcel} style={{ marginBottom: '0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Download size={15} /> Exportar Excel
+              </button>
+            )}
           </div>
 
           {report && (

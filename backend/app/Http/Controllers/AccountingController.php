@@ -65,7 +65,16 @@ class AccountingController extends Controller
             $entry = AccountingEntry::create($data);
         }
 
+        // Retención: eliminar entradas con más de 2 meses de antigüedad
+        $this->purgeOldEntries();
+
         return response()->json($entry->load(['concept', 'product']), 201);
+    }
+
+    private function purgeOldEntries(): void
+    {
+        $cutoff = Carbon::now('UTC')->subMonths(2)->toDateString();
+        AccountingEntry::where('entry_date', '<', $cutoff)->delete();
     }
 
     public function destroy($id)
