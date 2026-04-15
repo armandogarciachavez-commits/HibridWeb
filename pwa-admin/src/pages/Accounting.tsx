@@ -93,16 +93,18 @@ export default function Accounting() {
   const [deleteConcept, setDeleteConcept] = useState<Concept | null>(null);
 
   // ── Form de nueva entrada ──
-  const emptyEntry = { type: 'ingreso' as const, concept_id: '', entry_type: 'manual' as const, amount: '', product_id: '', product_qty: '1', notes: '', entry_date: new Date().toISOString().split('T')[0] };
-  const [entryForm, setEntryForm] = useState(emptyEntry);
+  type EntryForm = { type: 'ingreso' | 'egreso'; concept_id: string; entry_type: 'manual' | 'product_sale'; amount: string; product_id: string; product_qty: string; notes: string; entry_date: string; };
+  const emptyEntry: EntryForm = { type: 'ingreso', concept_id: '', entry_type: 'manual', amount: '', product_id: '', product_qty: '1', notes: '', entry_date: new Date().toISOString().split('T')[0] };
+  const [entryForm, setEntryForm] = useState<EntryForm>(emptyEntry);
 
   // ── Form producto ──
   const emptyProduct = { name: '', description: '', price: '', stock: '0', unit: 'pieza' };
   const [productForm, setProductForm] = useState(emptyProduct);
 
   // ── Form concepto ──
-  const emptyConcept = { name: '', type: 'ingreso' as const, description: '' };
-  const [conceptForm, setConceptForm] = useState(emptyConcept);
+  type ConceptForm = { name: string; type: 'ingreso' | 'egreso'; description: string; };
+  const emptyConcept: ConceptForm = { name: '', type: 'ingreso', description: '' };
+  const [conceptForm, setConceptForm] = useState<ConceptForm>(emptyConcept);
 
   // ── Form ajuste de stock ──
   const [stockAdj, setStockAdj] = useState('');
@@ -130,9 +132,6 @@ export default function Accounting() {
 
   // ── Producto seleccionado en el form de entrada ──
   const selectedProduct = products.find(p => String(p.id) === entryForm.product_id);
-  const computedAmount  = selectedProduct && entryForm.entry_type === 'product_sale'
-    ? (selectedProduct.price * Number(entryForm.product_qty)).toFixed(2)
-    : entryForm.amount;
 
   // ── Conceptos filtrados por tipo ──
   const filteredConcepts = concepts.filter(c => c.type === entryForm.type && c.is_active);
@@ -793,27 +792,27 @@ export default function Accounting() {
       )}
 
       {/* Confirm modales */}
-      {deleteEntry && (
-        <ConfirmModal
-          message={`¿Eliminar el movimiento de ${fmt(deleteEntry.amount)}? ${deleteEntry.entry_type === 'product_sale' ? 'Se devolverá el stock al inventario.' : ''}`}
-          onConfirm={handleDeleteEntry}
-          onCancel={() => setDeleteEntry(null)}
-        />
-      )}
-      {deleteProduct && (
-        <ConfirmModal
-          message={`¿Desactivar el producto "${deleteProduct.name}"?`}
-          onConfirm={handleDeleteProduct}
-          onCancel={() => setDeleteProduct(null)}
-        />
-      )}
-      {deleteConcept && (
-        <ConfirmModal
-          message={`¿Eliminar el concepto "${deleteConcept.name}"? Solo se puede eliminar si no tiene movimientos registrados.`}
-          onConfirm={handleDeleteConcept}
-          onCancel={() => setDeleteConcept(null)}
-        />
-      )}
+      <ConfirmModal
+        isOpen={!!deleteEntry}
+        title="Eliminar movimiento"
+        message={deleteEntry ? `¿Eliminar el movimiento de ${fmt(deleteEntry.amount)}? ${deleteEntry.entry_type === 'product_sale' ? 'Se devolverá el stock al inventario.' : ''}` : ''}
+        onConfirm={handleDeleteEntry}
+        onCancel={() => setDeleteEntry(null)}
+      />
+      <ConfirmModal
+        isOpen={!!deleteProduct}
+        title="Desactivar producto"
+        message={deleteProduct ? `¿Desactivar el producto "${deleteProduct.name}"?` : ''}
+        onConfirm={handleDeleteProduct}
+        onCancel={() => setDeleteProduct(null)}
+      />
+      <ConfirmModal
+        isOpen={!!deleteConcept}
+        title="Eliminar concepto"
+        message={deleteConcept ? `¿Eliminar el concepto "${deleteConcept.name}"? Solo se puede eliminar si no tiene movimientos registrados.` : ''}
+        onConfirm={handleDeleteConcept}
+        onCancel={() => setDeleteConcept(null)}
+      />
     </div>
   );
 }

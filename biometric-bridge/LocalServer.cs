@@ -16,6 +16,8 @@ public sealed class LocalServer : IDisposable
 
     private Task? _loop;
     private Task? _scanLoop;
+    private DateTime _lastCacheReload = DateTime.MinValue;
+    private static readonly TimeSpan CacheRefreshInterval = TimeSpan.FromMinutes(5);
     public bool Capturing => _captureLock.CurrentCount == 0;
 
     public LocalServer(FingerprintReader reader, SourceAFISMatcher matcher,
@@ -60,11 +62,14 @@ public sealed class LocalServer : IDisposable
 
                 if (probePng == null) continue;
 
-                // Recargar templates si el cache está vacío
-                if (_matcher.CacheSize == 0)
+                // Recargar templates si el cache está vacío o si ha pasado el intervalo de refresco
+                bool cacheStale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
+                if (_matcher.CacheSize == 0 || cacheStale)
                 {
                     var templates = await _api.GetTemplatesAsync();
                     _matcher.ReloadCache(templates);
+                    _lastCacheReload = DateTime.UtcNow;
+                    _log.LogInformation("Cache recargado: {N} templates.", _matcher.CacheSize);
                 }
 
                 var matchedId = _matcher.Match(probePng, _log);
@@ -78,6 +83,13 @@ public sealed class LocalServer : IDisposable
                 }
                 else
                 {
+                    // Sin match: si quedan usuarios recientes sin cargar, forzar recarga inmediata
+                    if ((DateTime.UtcNow - _lastCacheReload) >= TimeSpan.FromSeconds(30))
+                    {
+                        var templates = await _api.GetTemplatesAsync();
+                        _matcher.ReloadCache(templates);
+                        _lastCacheReload = DateTime.UtcNow;
+                    }
                     await Task.Delay(1_000, ct);
                 }
             }
@@ -214,10 +226,12 @@ public sealed class LocalServer : IDisposable
                 return;
             }
 
-            if (_matcher.CacheSize == 0)
+            bool stale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
+            if (_matcher.CacheSize == 0 || stale)
             {
                 var templates = await _api.GetTemplatesAsync();
                 _matcher.ReloadCache(templates);
+                _lastCacheReload = DateTime.UtcNow;
             }
 
             var uid = _matcher.Match(png, _log);

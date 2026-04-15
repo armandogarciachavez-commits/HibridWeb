@@ -69,7 +69,6 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::put('/admin/announcements/{id}', [AnnouncementController::class, 'update']);
     Route::patch('/admin/announcements/{id}/toggle', [AnnouncementController::class, 'toggle']);
     Route::delete('/admin/announcements/{id}', [AnnouncementController::class, 'destroy']);
-});
 
     // Contabilidad — Entradas
     Route::get('/admin/accounting/today',               [AccountingController::class, 'indexToday']);
@@ -91,6 +90,7 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::put('/admin/products/{id}',                     [ProductController::class, 'update']);
     Route::delete('/admin/products/{id}',                  [ProductController::class, 'destroy']);
     Route::patch('/admin/products/{id}/stock',             [ProductController::class, 'adjustStock']);
+});
 
 // ─── Super Administrador ──────────────────────────────────────────────────────
 Route::middleware(['auth:sanctum', 'superadmin'])->group(function () {

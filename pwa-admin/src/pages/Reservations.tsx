@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Clock, Users, ChevronLeft, ChevronRight, Plus, Settings, Trash, Calendar, List, BookOpen, RefreshCw, Dumbbell, Flame, Target, Zap, Activity } from 'lucide-react';
+import { Clock, Users, ChevronLeft, ChevronRight, Plus, Settings, Trash, Calendar, List, BookOpen, RefreshCw, Dumbbell, Flame, Target, Zap, Activity, Edit2, X } from 'lucide-react';
 import { useToast } from '../components/ui/ToastContext';
 import Spinner from '../components/ui/Spinner';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -36,6 +36,10 @@ const Reservations = () => {
   const [genParams, setGenParams] = useState({ gym_class_id: '', instructor: '', days_of_week: [] as number[], start_time: '08:00', end_time: '09:00', capacity: 15, target_month: new Date().getMonth() + 1, target_year: new Date().getFullYear() });
   const [showSingleSessionModal, setShowSingleSessionModal] = useState(false);
   const [singleSession, setSingleSession] = useState({ date: localIsoDate, gym_class_id: '', instructor: '', start_time: '08:00', end_time: '09:00', capacity: 15 });
+
+  // -- ESTADO EDICIÓN DE SESIÓN --
+  const [editingSession, setEditingSession] = useState<any | null>(null);
+  const [editSessionForm, setEditSessionForm] = useState({ instructor: '', start_time: '08:00', end_time: '09:00', capacity: 15, date: '' });
 
   // -- ESTADO PESTAÑA: RESERVACIONES --
   const [allReservations, setAllReservations] = useState<any[]>([]);
@@ -188,6 +192,40 @@ const Reservations = () => {
       setConfirmModal({ isOpen: true, type: 'session', id, text: "Se cancelarán las reservaciones atadas a ella. Los tokens no se reembolsan automáticamente en admin." });
   };
 
+  const openEditSession = (ss: any) => {
+    setEditingSession(ss);
+    setEditSessionForm({
+      instructor: ss.instructor || '',
+      start_time: (ss.start_time || '08:00').substring(0, 5),
+      end_time:   (ss.end_time   || '09:00').substring(0, 5),
+      capacity:   ss.capacity   || 15,
+      date:       (ss.date || '').split('T')[0],
+    });
+  };
+
+  const handleUpdateSession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSession) return;
+    setLoading(true);
+    try {
+      const res = await apiFetch(`/admin/calendar/sessions/${editingSession.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(editSessionForm),
+      });
+      if (res.ok) {
+        addToast('Sesión actualizada.', 'success');
+        setEditingSession(null);
+        fetchSessions(currentMonth, currentYear);
+      } else {
+        addToast('Error al actualizar la sesión.', 'error');
+      }
+    } catch {
+      addToast('Error de conexión.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleClearMonth = () => {
       setConfirmModal({ isOpen: true, type: 'month', id: null, text: `¿Completamente seguro de borrar TODO el mes de ${monthNames[currentMonth-1]} ${currentYear}?` });
   };
@@ -304,16 +342,24 @@ const Reservations = () => {
 
   // Render Session Card mini
   const renderSessionPill = (ss: any) => (
-      <div key={ss.id} style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '4px', border: '1px solid #333', borderLeft: `6px solid ${ss.gym_class?.color || '#333'}`, marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+      <div key={ss.id} onClick={() => openEditSession(ss)} style={{ position: 'relative', background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '4px', border: '1px solid #333', borderLeft: `6px solid ${ss.gym_class?.color || '#333'}`, marginBottom: '8px', display: 'flex', flexDirection: 'column', gap: '4px', cursor: 'pointer', transition: 'background 0.15s' }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.09)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+      >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             {getClassIcon(ss.gym_class?.name || '', ss.gym_class?.color || 'var(--secondary)', 14)}
-            <div style={{ fontWeight: 'bold', fontSize: '0.85rem', paddingRight: '20px' }}>{ss.gym_class?.name || 'Clase Borrada'}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '0.85rem', paddingRight: '44px' }}>{ss.gym_class?.name || 'Clase Borrada'}</div>
           </div>
           <div style={{ color: 'var(--secondary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center' }}><Clock size={12} style={{marginRight: '4px'}}/> {ss.start_time.substring(0,5)} - {ss.end_time.substring(0,5)}</div>
           <div style={{ color: 'var(--secondary)', fontSize: '0.75rem', display: 'flex', alignItems: 'center' }}><Users size={12} style={{marginRight: '4px'}}/> {ss.instructor}</div>
-          <button style={{ position:'absolute', top:'8px', right:'8px', background: 'transparent', border:'none', color:'#ff4444', cursor:'pointer', padding: 0 }} onClick={() => handleDeleteSession(ss.id)} title="Eliminar clase">
-              <Trash size={14}/>
-          </button>
+          <div style={{ position:'absolute', top:'6px', right:'6px', display: 'flex', gap: '2px' }}>
+            <button style={{ background: 'transparent', border:'none', color:'var(--secondary)', cursor:'pointer', padding: '2px' }} onClick={e => { e.stopPropagation(); openEditSession(ss); }} title="Editar clase">
+                <Edit2 size={13}/>
+            </button>
+            <button style={{ background: 'transparent', border:'none', color:'#ff4444', cursor:'pointer', padding: '2px' }} onClick={e => { e.stopPropagation(); handleDeleteSession(ss.id); }} title="Eliminar clase">
+                <Trash size={13}/>
+            </button>
+          </div>
       </div>
   );
 
@@ -868,6 +914,65 @@ const Reservations = () => {
                  </form>
              </div>
           </div>
+      )}
+
+      {/* MODAL: EDITAR SESIÓN */}
+      {editingSession && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: '20px' }}>
+          <div className="card" style={{ width: '100%', maxWidth: '480px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ color: 'var(--text)', fontSize: '1.1rem', margin: 0 }}>Editar Sesión</h2>
+                <p style={{ color: 'var(--secondary)', fontSize: '0.82rem', margin: '4px 0 0' }}>
+                  {editingSession.gym_class?.name || 'Clase'} — {editSessionForm.date}
+                </p>
+              </div>
+              <button onClick={() => setEditingSession(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--secondary)' }}>
+                <X size={22} />
+              </button>
+            </div>
+            <form onSubmit={handleUpdateSession} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label className="form-label">Instructor</label>
+                <input required type="text" className="form-control" style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff' }}
+                  value={editSessionForm.instructor}
+                  onChange={e => setEditSessionForm({ ...editSessionForm, instructor: e.target.value })} />
+              </div>
+              <div>
+                <label className="form-label">Fecha</label>
+                <input required type="date" className="form-control" style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff' }}
+                  value={editSessionForm.date}
+                  onChange={e => setEditSessionForm({ ...editSessionForm, date: e.target.value })} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label className="form-label">Inicio</label>
+                  <input required type="time" className="form-control" style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff' }}
+                    value={editSessionForm.start_time}
+                    onChange={e => setEditSessionForm({ ...editSessionForm, start_time: e.target.value })} />
+                </div>
+                <div>
+                  <label className="form-label">Fin</label>
+                  <input required type="time" className="form-control" style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff' }}
+                    value={editSessionForm.end_time}
+                    onChange={e => setEditSessionForm({ ...editSessionForm, end_time: e.target.value })} />
+                </div>
+                <div>
+                  <label className="form-label">Capacidad</label>
+                  <input required type="number" min="1" className="form-control" style={{ background: '#0a0a0a', border: '1px solid #333', color: '#fff' }}
+                    value={editSessionForm.capacity}
+                    onChange={e => setEditSessionForm({ ...editSessionForm, capacity: parseInt(e.target.value) })} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
+                <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setEditingSession(null)}>Cancelar</button>
+                <button type="submit" className="btn" style={{ flex: 1 }} disabled={loading}>
+                  {loading ? <Spinner size="16px" /> : 'Guardar cambios'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* MODAL GLOBAL CONFIRMACION */}

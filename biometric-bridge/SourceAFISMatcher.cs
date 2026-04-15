@@ -17,7 +17,8 @@ public sealed class SourceAFISMatcher
     private readonly Dictionary<int, FingerprintTemplate> _cache = new();
 
     // Umbral ajustado para hardware con parseo directo (sin SampleConversion oficial)
-    private const double Threshold = 20.0;
+    // 40.0 = recomendado por SourceAFIS; 15.0 = más permisivo para imágenes de baja calidad
+    private const double Threshold = 15.0;
 
     public SourceAFISMatcher(ILogger<SourceAFISMatcher> log) => _log = log;
 

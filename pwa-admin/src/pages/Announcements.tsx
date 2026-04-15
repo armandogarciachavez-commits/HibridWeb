@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Megaphone, X, Image, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Megaphone, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useToast } from '../components/ui/ToastContext';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -52,7 +52,7 @@ const Announcements = () => {
       return;
     }
 
-    const img = new Image();
+    const img = new window.Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
@@ -151,22 +151,28 @@ const Announcements = () => {
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '16px' }}>
-          {items.map(ann => (
-            <div key={ann.id} className="card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', opacity: ann.is_active ? 1 : 0.5 }}>
+          {items.map(ann => {
+            const isExpired = !!ann.expires_at && new Date(ann.expires_at) < new Date();
+            const effectivelyActive = ann.is_active && !isExpired;
+            const badgeLabel   = isExpired ? 'Expirado' : ann.is_active ? 'Activo' : 'Inactivo';
+            const badgeBg      = isExpired ? 'rgba(255,153,0,0.15)' : effectivelyActive ? 'rgba(0,204,102,0.15)' : 'rgba(255,68,68,0.15)';
+            const badgeColor   = isExpired ? '#ff9900' : effectivelyActive ? '#00cc66' : '#ff4444';
+            return (
+            <div key={ann.id} className="card" style={{ display: 'flex', gap: '16px', alignItems: 'flex-start', opacity: effectivelyActive ? 1 : 0.55 }}>
               {ann.image && (
                 <img src={ann.image} alt="" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '8px', flexShrink: 0 }} />
               )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <h3 style={{ color: 'var(--text)', fontSize: '1rem', fontWeight: 700 }}>{ann.title}</h3>
-                  <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: ann.is_active ? 'rgba(0,204,102,0.15)' : 'rgba(255,68,68,0.15)', color: ann.is_active ? '#00cc66' : '#ff4444', fontWeight: 600 }}>
-                    {ann.is_active ? 'Activo' : 'Inactivo'}
+                  <span style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: badgeBg, color: badgeColor, fontWeight: 600 }}>
+                    {badgeLabel}
                   </span>
                 </div>
                 {ann.body && <p style={{ color: 'var(--secondary)', fontSize: '0.88rem', marginBottom: '4px', whiteSpace: 'pre-wrap' }}>{ann.body}</p>}
                 {ann.expires_at && (
-                  <p style={{ fontSize: '0.78rem', color: 'var(--secondary)' }}>
-                    Expira: {new Date(ann.expires_at).toLocaleDateString('es-MX')}
+                  <p style={{ fontSize: '0.78rem', color: isExpired ? '#ff9900' : 'var(--secondary)' }}>
+                    {isExpired ? '⚠ Expiró el' : 'Expira:'} {new Date(ann.expires_at).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </p>
                 )}
               </div>
@@ -185,7 +191,8 @@ const Announcements = () => {
                 </button>
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
 
@@ -233,7 +240,7 @@ const Announcements = () => {
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <button type="button" className="btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', padding: '8px 14px' }}
                     onClick={() => fileRef.current?.click()}>
-                    <Image size={16} /> Subir imagen
+                    <ImageIcon size={16} /> Subir imagen
                   </button>
                   {editing.image && (
                     <>
