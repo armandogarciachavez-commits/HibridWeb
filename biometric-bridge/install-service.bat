@@ -42,6 +42,6 @@ start "" "%EXE_PATH%"
 echo.
 echo [OK] Hybrid Biometric Bridge instalado correctamente.
 echo      Iniciara automaticamente cada vez que inicies sesion en Windows.
-echo      Escuchando en http://localhost:7071
+echo      Escuchando en http://localhost:7072
 echo.
 pause

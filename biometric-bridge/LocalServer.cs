@@ -29,7 +29,7 @@ public sealed class LocalServer : IDisposable
         _api     = api;
         _log     = log;
 
-        int port = cfg.GetValue<int>("Bridge:LocalPort", 7071);
+        int port = cfg.GetValue<int>("Bridge:LocalPort", 7072);
         _listener.Prefixes.Add($"http://localhost:{port}/");
     }
 
@@ -274,7 +274,8 @@ public sealed class LocalServer : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
-        _listener.Stop();
+        if (_listener?.IsListening == true)
+            _listener.Stop();
         _listener.Close();
     }
 }

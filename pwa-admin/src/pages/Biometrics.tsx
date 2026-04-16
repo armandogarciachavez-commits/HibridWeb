@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Fingerprint, MonitorPlay, Database, CheckCircle, XCircle, Wifi, WifiOff } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
-const BRIDGE_URL = 'http://localhost:7071';
+const BRIDGE_URL = 'http://localhost:7072';
 const ENROLL_TIMEOUT_MS = 30_000; // 30 segundos por muestra
 const TOTAL_SAMPLES = 3;
 

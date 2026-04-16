@@ -5,7 +5,7 @@ import Spinner from '../components/ui/Spinner';
 import ConfirmModal from '../components/ui/ConfirmModal';
 import { apiFetch } from '../lib/api';
 
-const BRIDGE_URL = 'http://localhost:7071';
+const BRIDGE_URL = 'http://localhost:7072';
 
 const Users = () => {
   const { addToast } = useToast();
