@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Calendar, User, LogOut } from 'lucide-react';
+import { Home, Calendar, User, LogOut, Stethoscope } from 'lucide-react';
 
 interface NavigationProps {
   onLogout: () => void;
@@ -23,6 +23,14 @@ const Navigation = ({ onLogout }: NavigationProps) => {
       >
         <Calendar size={24} />
         <span>Reservas</span>
+      </NavLink>
+
+      <NavLink
+        to="/nutrition"
+        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+      >
+        <Stethoscope size={24} />
+        <span>Nutriólogo</span>
       </NavLink>
 
       <NavLink

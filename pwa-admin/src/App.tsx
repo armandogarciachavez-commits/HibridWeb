@@ -12,6 +12,7 @@ import AdminManager from './pages/AdminManager';
 import ScannerDisplay from './pages/ScannerDisplay';
 import Announcements from './pages/Announcements';
 import Accounting from './pages/Accounting';
+import Nutrition from './pages/Nutrition';
 import { apiFetch, isTokenValid } from './lib/api';
 import { useLocation } from 'react-router-dom';
 
@@ -30,6 +31,7 @@ function AppContent({ handleLogout }: { handleLogout: () => void }) {
           <Route path="/biometrics"    element={<ProtectedRoute><Biometrics /></ProtectedRoute>} />
           <Route path="/announcements" element={<ProtectedRoute><Announcements /></ProtectedRoute>} />
           <Route path="/accounting"    element={<ProtectedRoute><Accounting /></ProtectedRoute>} />
+          <Route path="/nutrition"     element={<ProtectedRoute><Nutrition /></ProtectedRoute>} />
           <Route path="/admins"        element={<ProtectedRoute requireSuperAdmin><AdminManager /></ProtectedRoute>} />
           <Route path="/scanner-display" element={<ProtectedRoute><ScannerDisplay /></ProtectedRoute>} />
           <Route path="*"           element={<Navigate to="/" replace />} />

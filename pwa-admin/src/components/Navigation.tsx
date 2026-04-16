@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { LayoutDashboard, Users, Calendar as CalendarIcon, Fingerprint, ShieldCheck, LogOut, Megaphone, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar as CalendarIcon, Fingerprint, ShieldCheck, LogOut, Megaphone, BookOpen, Stethoscope } from 'lucide-react';
 
 interface NavigationProps {
   onLogout: () => void;
@@ -61,6 +61,11 @@ const Navigation = ({ onLogout }: NavigationProps) => {
         <NavLink to="/accounting" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
           <BookOpen size={20} />
           <span>Contabilidad</span>
+        </NavLink>
+
+        <NavLink to="/nutrition" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+          <Stethoscope size={20} />
+          <span>Nutriólogo</span>
         </NavLink>
 
         {isSuperAdmin && (

@@ -11,6 +11,7 @@ use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AccountingConceptController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\NutritionController;
 
 // ─── Rutas públicas ───────────────────────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -30,6 +31,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/payments/create-preference', [PaymentController::class, 'createPreference']);
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/announcements', [AnnouncementController::class, 'index']);
+
+    // Nutrición — Socios
+    Route::get('/nutrition/available',      [NutritionController::class, 'available']);
+    Route::get('/nutrition/my',             [NutritionController::class, 'myAppointments']);
+    Route::post('/nutrition/appointments',  [NutritionController::class, 'store']);
+    Route::patch('/nutrition/appointments/{id}/cancel', [NutritionController::class, 'destroy']);
 });
 
 // ─── Administrador (admin + superadmin) ───────────────────────────────────────
@@ -90,6 +97,12 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::put('/admin/products/{id}',                     [ProductController::class, 'update']);
     Route::delete('/admin/products/{id}',                  [ProductController::class, 'destroy']);
     Route::patch('/admin/products/{id}/stock',             [ProductController::class, 'adjustStock']);
+
+    // Nutrición — Admin
+    Route::get('/admin/nutrition/appointments',       [NutritionController::class, 'index']);
+    Route::post('/admin/nutrition/appointments',      [NutritionController::class, 'store']);
+    Route::put('/admin/nutrition/appointments/{id}',  [NutritionController::class, 'update']);
+    Route::delete('/admin/nutrition/appointments/{id}', [NutritionController::class, 'destroy']);
 });
 
 // ─── Super Administrador ──────────────────────────────────────────────────────
