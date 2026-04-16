@@ -249,8 +249,10 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
 
     void DPFP.Capture.EventHandler.OnReaderDisconnect(object Capture, string ReaderSerialNumber)
     {
-        _log.LogWarning("Lector desconectado.");
+        _log.LogWarning("Lector desconectado. Se requiere reinicialización.");
         _tcs?.TrySetResult(null);
+        // Resetear _capture para que IsReady = false y el Worker pueda reinicializar
+        _capture = null;
     }
 
     void DPFP.Capture.EventHandler.OnSampleQuality(

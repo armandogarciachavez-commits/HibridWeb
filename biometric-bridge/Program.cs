@@ -17,6 +17,12 @@ builder.Services.AddHostedService<Worker>();
 // ── Logging ───────────────────────────────────────────────────────────────
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
+// Windows Event Log: permite ver errores en el Visor de eventos cuando corre como servicio
+builder.Logging.AddEventLog(settings =>
+{
+    settings.SourceName = "HybridBiometricBridge";
+    settings.LogName    = "Application";
+});
 
 var host = builder.Build();
 host.Run();

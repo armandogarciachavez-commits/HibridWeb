@@ -18,6 +18,7 @@ public sealed class LocalServer : IDisposable
     private Task? _scanLoop;
     private DateTime _lastCacheReload = DateTime.MinValue;
     private static readonly TimeSpan CacheRefreshInterval = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan CacheRetryInterval   = TimeSpan.FromSeconds(30);
     public bool Capturing => _captureLock.CurrentCount == 0;
 
     public LocalServer(FingerprintReader reader, SourceAFISMatcher matcher,
@@ -48,7 +49,17 @@ public sealed class LocalServer : IDisposable
         {
             try
             {
-                if (!_reader.IsReady) { await Task.Delay(2_000, ct); continue; }
+                if (!_reader.IsReady)
+                {
+                    _log.LogWarning("Lector no disponible. Intentando reinicializar...");
+                    bool ok = _reader.Initialize();
+                    if (!ok)
+                    {
+                        _log.LogWarning("Reinicialización fallida. Reintentando en 5 s...");
+                        await Task.Delay(5_000, ct);
+                    }
+                    continue;
+                }
 
                 await _captureLock.WaitAsync(ct);
                 byte[]? probePng = null;
@@ -62,9 +73,12 @@ public sealed class LocalServer : IDisposable
 
                 if (probePng == null) continue;
 
-                // Recargar templates si el cache está vacío o si ha pasado el intervalo de refresco
+                // Recargar templates si el cache está vacío (respetando intervalo de reintento)
+                // o si ha pasado el intervalo normal de refresco
+                bool cacheEmpty = _matcher.CacheSize == 0
+                    && (DateTime.UtcNow - _lastCacheReload) >= CacheRetryInterval;
                 bool cacheStale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
-                if (_matcher.CacheSize == 0 || cacheStale)
+                if (cacheEmpty || cacheStale)
                 {
                     var templates = await _api.GetTemplatesAsync();
                     _matcher.ReloadCache(templates);
