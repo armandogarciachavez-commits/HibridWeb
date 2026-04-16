@@ -43,7 +43,7 @@ class AccountingController extends Controller
             'entry_date'  => 'nullable|date',
         ]);
 
-        $data['created_by'] = $request->user()->id;
+        $data['created_by'] = $request->user()?->id;
         $data['entry_date'] = $data['entry_date'] ?? Carbon::now('UTC')->toDateString();
 
         if ($data['entry_type'] === 'product_sale') {
