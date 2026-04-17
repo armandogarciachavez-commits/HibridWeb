@@ -24,6 +24,20 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
 
     public bool Initialize()
     {
+        // Si ya hay recursos activos, los limpia antes de reinicializar
+        if (_form != null)
+        {
+            try
+            {
+                if (!_form.IsDisposed)
+                    _form.Invoke(Application.ExitThread);
+            }
+            catch { }
+            _capture   = null;
+            _form      = null;
+            _staThread = null;
+        }
+
         var ready   = new ManualResetEventSlim(false);
         var success = false;
 
@@ -87,6 +101,10 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         {
             _tcs = null;
             _log.LogError(ex, "StartCapture falló: {Msg}", ex.Message);
+            // Intentar detener la captura para limpiar el estado del SDK
+            try { _form?.Invoke(() => _capture?.StopCapture()); } catch { }
+            // Forzar reinicialización completa en el siguiente intento
+            _capture = null;
             return Task.FromResult<byte[]?>(null);
         }
 

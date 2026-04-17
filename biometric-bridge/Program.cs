@@ -7,6 +7,12 @@ builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
 // ── Servicios ─────────────────────────────────────────────────────────────
+// Necesario para que el proceso se comunique correctamente con el SCM de Windows
+// y no reciba error 1053 al instalarse como servicio
+builder.Services.AddWindowsService(options =>
+{
+    options.ServiceName = "HybridBiometricBridge";
+});
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<FingerprintReader>();
 builder.Services.AddSingleton<SourceAFISMatcher>();
