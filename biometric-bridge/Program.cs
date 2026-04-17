@@ -14,6 +14,10 @@ if (!WindowsServiceHelpers.IsWindowsService() && GetConsoleWindow() == IntPtr.Ze
 
 var builder = Host.CreateApplicationBuilder(args);
 
+// ── Fijar ContentRoot al directorio del ejecutable (independiente del CWD) ──
+builder.Environment.ContentRootPath = AppContext.BaseDirectory;
+builder.Configuration.SetBasePath(AppContext.BaseDirectory);
+
 // ── Configuración ─────────────────────────────────────────────────────────
 builder.Configuration
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
