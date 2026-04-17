@@ -22,6 +22,10 @@ public sealed class Worker : BackgroundService
     {
         _log.LogInformation("=== Hybrid Biometric Bridge iniciando ===");
 
+        // Esperar a que el driver DPFP esté listo (especialmente en arranque al logon)
+        _log.LogInformation("Esperando 15 s para que el driver DPFP esté listo...");
+        await Task.Delay(15_000, stoppingToken);
+
         // Intentar inicializar el lector (reintenta cada 5 s si falla)
         while (!stoppingToken.IsCancellationRequested && !_reader.IsReady)
         {

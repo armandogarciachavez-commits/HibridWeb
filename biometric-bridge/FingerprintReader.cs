@@ -56,10 +56,32 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                 {
                     try
                     {
-                        _capture = new Capture(Priority.High);
+                        _capture = new Capture(Priority.Normal);
                         _capture.EventHandler = this;
-                        success = true;
-                        _log.LogInformation("Lector DigitalPersona inicializado (STA).");
+
+                        // Warm-up: verificar que StartCapture realmente funciona
+                        // antes de reportar éxito. Reintenta hasta 3 veces con pausa.
+                        for (int attempt = 0; attempt < 3; attempt++)
+                        {
+                            try
+                            {
+                                _capture.StartCapture();
+                                _capture.StopCapture();
+                                success = true;
+                                _log.LogInformation(
+                                    "Lector DigitalPersona inicializado y verificado (intento {N}).", attempt + 1);
+                                break;
+                            }
+                            catch (Exception ex)
+                            {
+                                _log.LogWarning("StartCapture warm-up falló (intento {N}): {M}",
+                                    attempt + 1, ex.Message);
+                                Thread.Sleep(3_000);
+                            }
+                        }
+
+                        if (!success)
+                            _log.LogError("No se pudo verificar el lector tras 3 intentos.");
                     }
                     catch (Exception ex)
                     {
