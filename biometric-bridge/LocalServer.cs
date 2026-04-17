@@ -55,8 +55,8 @@ public sealed class LocalServer : IDisposable
                     bool ok = _reader.Initialize();
                     if (!ok)
                     {
-                        _log.LogWarning("Reinicialización fallida. Reintentando en 5 s...");
-                        await Task.Delay(5_000, ct);
+                        _log.LogWarning("Reinicialización fallida. Reintentando en 20 s...");
+                        await Task.Delay(20_000, ct);
                     }
                     continue;
                 }

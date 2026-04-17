@@ -20,6 +20,35 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
     public FingerprintReader(ILogger<FingerprintReader> log)
     {
         _log = log;
+        // Reinicializar el lector cuando el sistema sale de hibernación/suspensión
+        Microsoft.Win32.SystemEvents.PowerModeChanged += (_, e) =>
+        {
+            if (e.Mode == Microsoft.Win32.PowerModes.Resume)
+            {
+                _log.LogInformation("Sistema resumido. Forzando reinicialización del lector en 20 s...");
+                Task.Run(async () =>
+                {
+                    await Task.Delay(20_000);
+                    ForceReset();
+                });
+            }
+        };
+    }
+
+    /// <summary>Fuerza reset del lector (usar tras wake de hibernación).</summary>
+    public void ForceReset()
+    {
+        AbortCapture();
+        try
+        {
+            if (_form != null && !_form.IsDisposed)
+                _form.Invoke(Application.ExitThread);
+        }
+        catch { }
+        _capture   = null;
+        _form      = null;
+        _staThread = null;
+        _log.LogInformation("Lector reseteado. ScanLoop reinicializará en próximo ciclo.");
     }
 
     public bool Initialize()
