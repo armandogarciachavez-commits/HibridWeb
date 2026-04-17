@@ -56,32 +56,44 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
                 {
                     try
                     {
-                        _capture = new Capture(Priority.Normal);
-                        _capture.EventHandler = this;
-
-                        // Warm-up: verificar que StartCapture realmente funciona
-                        // antes de reportar éxito. Reintenta hasta 3 veces con pausa.
+                        // Warm-up con objeto TEMPORAL para verificar el driver
+                        // sin contaminar el _capture real que se usará para escaneo.
+                        bool driverOk = false;
                         for (int attempt = 0; attempt < 3; attempt++)
                         {
+                            Capture? temp = null;
                             try
                             {
-                                _capture.StartCapture();
-                                _capture.StopCapture();
-                                success = true;
-                                _log.LogInformation(
-                                    "Lector DigitalPersona inicializado y verificado (intento {N}).", attempt + 1);
+                                temp = new Capture(Priority.Normal);
+                                temp.StartCapture();
+                                temp.StopCapture();
+                                driverOk = true;
+                                _log.LogInformation("Driver DPFP verificado (intento {N}).", attempt + 1);
                                 break;
                             }
                             catch (Exception ex)
                             {
-                                _log.LogWarning("StartCapture warm-up falló (intento {N}): {M}",
-                                    attempt + 1, ex.Message);
+                                _log.LogWarning("Warm-up falló (intento {N}): {M}", attempt + 1, ex.Message);
                                 Thread.Sleep(3_000);
+                            }
+                            finally
+                            {
+                                try { temp?.StopCapture(); } catch { }
                             }
                         }
 
-                        if (!success)
-                            _log.LogError("No se pudo verificar el lector tras 3 intentos.");
+                        if (driverOk)
+                        {
+                            // Crear _capture FRESCO para el escaneo real
+                            _capture = new Capture(Priority.High);
+                            _capture.EventHandler = this;
+                            success = true;
+                            _log.LogInformation("Lector DigitalPersona listo para captura.");
+                        }
+                        else
+                        {
+                            _log.LogError("No se pudo verificar el driver DPFP tras 3 intentos.");
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -118,6 +130,7 @@ public sealed class FingerprintReader : IDisposable, DPFP.Capture.EventHandler
         try
         {
             _form.Invoke(() => _capture.StartCapture());
+            _log.LogInformation("Esperando muestra del lector...");
         }
         catch (Exception ex)
         {
