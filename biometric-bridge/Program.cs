@@ -1,4 +1,16 @@
+using System.Runtime.InteropServices;
 using HybridBiometricBridge;
+using Microsoft.Extensions.Hosting.WindowsServices;
+
+// ── Consola oculta para procesos en segundo plano ─────────────────────────────
+// Cuando el proceso se lanza sin consola (wscript, Task Scheduler hidden, etc.)
+// ConsoleLifetime de .NET falla porque no puede registrar los handlers de Ctrl+C.
+// Solución: asignar una consola oculta si no hay ninguna y no es un Windows Service.
+if (!WindowsServiceHelpers.IsWindowsService() && GetConsoleWindow() == IntPtr.Zero)
+{
+    AllocConsole();
+    ShowWindow(GetConsoleWindow(), 0); // SW_HIDE: consola asignada pero invisible
+}
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -8,7 +20,6 @@ builder.Configuration
 
 // ── Servicios ─────────────────────────────────────────────────────────────
 // Necesario para que el proceso se comunique correctamente con el SCM de Windows
-// y no reciba error 1053 al instalarse como servicio
 builder.Services.AddWindowsService(options =>
 {
     options.ServiceName = "HybridBiometricBridge";
@@ -23,7 +34,7 @@ builder.Services.AddHostedService<Worker>();
 // ── Logging ───────────────────────────────────────────────────────────────
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
-// Windows Event Log: permite ver errores en el Visor de eventos cuando corre como servicio
+// Windows Event Log: visible en Visor de eventos cuando no hay consola
 builder.Logging.AddEventLog(settings =>
 {
     settings.SourceName = "HybridBiometricBridge";
@@ -32,3 +43,8 @@ builder.Logging.AddEventLog(settings =>
 
 var host = builder.Build();
 host.Run();
+
+// ── Win32 API para asignar consola oculta ─────────────────────────────────
+[DllImport("kernel32.dll")] static extern bool AllocConsole();
+[DllImport("kernel32.dll")] static extern IntPtr GetConsoleWindow();
+[DllImport("user32.dll")]   static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
