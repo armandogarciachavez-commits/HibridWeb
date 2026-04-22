@@ -39,8 +39,24 @@ public sealed class Worker : BackgroundService
             await Task.Delay(5_000, stoppingToken);
         }
 
-        // Inicia el servidor HTTP local
-        _server.Start();
+        // Inicia el servidor HTTP local (retry si HTTP.sys no está listo tras hibernate)
+        bool serverStarted = false;
+        for (int attempt = 1; attempt <= 10 && !stoppingToken.IsCancellationRequested; attempt++)
+        {
+            try
+            {
+                _server.Start();
+                serverStarted = true;
+                break;
+            }
+            catch (System.Net.HttpListenerException ex)
+            {
+                _log.LogWarning("HTTP listener falló (intento {N}/10): {M}. Reintentando en 15 s...",
+                    attempt, ex.Message);
+                await Task.Delay(15_000, stoppingToken);
+            }
+        }
+        if (!serverStarted) return;
         _log.LogInformation("Bridge listo. Esperando peticiones.");
 
         // Mantener el servicio vivo
