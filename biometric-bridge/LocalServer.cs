@@ -39,6 +39,18 @@ public sealed class LocalServer : IDisposable
         _log.LogInformation("Servidor local iniciado en {P}", _listener.Prefixes.First());
         _loop     = Task.Run(ListenLoop);
         _scanLoop = Task.Run(() => ScanLoop(_cts.Token));
+        // Pre-cargar templates al arrancar para evitar delay en el primer scan
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                var templates = await _api.GetTemplatesAsync();
+                _matcher.ReloadCache(templates);
+                _lastCacheReload = DateTime.UtcNow;
+                _log.LogInformation("Templates pre-cargados al inicio: {N}.", _matcher.CacheSize);
+            }
+            catch (Exception ex) { _log.LogWarning(ex, "Pre-carga de templates falló."); }
+        });
     }
 
     // ── Scan loop continuo ────────────────────────────────────────────────
@@ -93,7 +105,7 @@ public sealed class LocalServer : IDisposable
                     _log.LogInformation("Socio identificado: user_id={Id}", matchedId.Value);
                     var (ok, msg) = await _api.VerifyAsync(matchedId.Value);
                     _log.LogInformation("Acceso: {S} — {M}", ok ? "GRANTED" : "DENIED", msg);
-                    await Task.Delay(3_000, ct);
+                    await Task.Delay(1_000, ct);
                 }
                 else
                 {

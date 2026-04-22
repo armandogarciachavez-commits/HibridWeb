@@ -37,7 +37,7 @@ const ScannerDisplay = () => {
       } catch { /* silent */ }
     };
     fetchRecentScan();
-    const interval = setInterval(fetchRecentScan, 2000);
+    const interval = setInterval(fetchRecentScan, 500);
     return () => clearInterval(interval);
   }, []);
 
