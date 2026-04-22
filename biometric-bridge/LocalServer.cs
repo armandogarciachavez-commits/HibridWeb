@@ -358,6 +358,12 @@ public sealed class LocalServer : IDisposable
             {
                 _matcher.AddToCache(userId, templateBase64);
                 _log.LogInformation("Huella enrolada para user_id={Id}.", userId);
+                // Refrescar cache de socios para que el nuevo aparezca de inmediato
+                _ = Task.Run(async () =>
+                {
+                    var members = await _api.GetMembersAsync();
+                    if (members.Count > 0) _cache.SaveMembers(members);
+                });
             }
 
             await WriteJson(res,
