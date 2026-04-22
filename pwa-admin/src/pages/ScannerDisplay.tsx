@@ -1,9 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dumbbell, Flame, Target, Zap, Activity } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 
 const ScannerDisplay = () => {
   const [recentScan, setRecentScan] = useState<any>(null);
+  // Evita llamar a la API remota más de una vez por scan
+  const lastScanIdRef = useRef<number | null>(null);
 
   const getClassIcon = (name: string, color: string, size = 16) => {
     const n = name.toUpperCase();
@@ -28,7 +30,7 @@ const ScannerDisplay = () => {
 
   useEffect(() => {
     const fetchRecentScan = async () => {
-      // 1. Intentar bridge local primero (más rápido, funciona offline)
+      // 1. Bridge local — más rápido y funciona offline
       try {
         const ctrl = new AbortController();
         const timer = setTimeout(() => ctrl.abort(), 800);
@@ -36,21 +38,45 @@ const ScannerDisplay = () => {
         clearTimeout(timer);
         if (res.ok) {
           const data = await res.json();
-          if (data && data.id) { setRecentScan(data); return; }
-          // Bridge respondió null (sin scan reciente) — no actualizar estado
+          if (data && data.id) {
+            setRecentScan(data);
+            // Solo la primera vez que aparece este scan: enriquecer con reservaciones
+            if (lastScanIdRef.current !== data.id) {
+              lastScanIdRef.current = data.id;
+              // Esperamos 2 s para que VerifyAsync haya registrado el scan en la BD
+              setTimeout(async () => {
+                try {
+                  const r = await apiFetch('/admin/scans/recent');
+                  if (!r.ok) return;
+                  const full = await r.json();
+                  if (full?.user_id === data.user_id && full?.user?.reservations?.length > 0) {
+                    setRecentScan((prev: any) =>
+                      prev?.id === data.id
+                        ? { ...prev, user: { ...prev.user, reservations: full.user.reservations } }
+                        : prev
+                    );
+                  }
+                } catch { /* silent */ }
+              }, 2000);
+            }
+            return;
+          }
+          // Bridge corriendo pero sin scan reciente → pantalla en espera
+          setRecentScan(null);
           return;
         }
       } catch { /* bridge no disponible — usar API remota */ }
 
-      // 2. Fallback: API remota (cuando el bridge no está corriendo)
+      // 2. Fallback: API remota (cuando bridge no está corriendo)
       try {
-        const res = await apiFetch('/admin/scans/recent');
-        if (res.ok) {
-          const data = await res.json();
+        const r = await apiFetch('/admin/scans/recent');
+        if (r.ok) {
+          const data = await r.json();
           setRecentScan(data && data.id ? data : null);
         }
       } catch { /* silent */ }
     };
+
     fetchRecentScan();
     const interval = setInterval(fetchRecentScan, 500);
     return () => clearInterval(interval);
@@ -137,7 +163,11 @@ const ScannerDisplay = () => {
 
               {/* Membresía */}
               {(() => {
-                const activePlan = recentScan.user.memberships?.find((m: any) => m.is_active);
+                // Usar status del scan como fuente de verdad para evitar membresías vencidas
+                // que siguen con is_active=true en la BD pero ya expiraron
+                const activePlan = recentScan.status === 'granted'
+                  ? recentScan.user.memberships?.find((m: any) => m.is_active)
+                  : null;
                 const daysLeft = activePlan
                   ? Math.ceil((new Date(activePlan.end_date).getTime() - Date.now()) / 86400000)
                   : 0;
