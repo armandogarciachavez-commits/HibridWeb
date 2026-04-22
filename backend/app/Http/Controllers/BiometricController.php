@@ -84,6 +84,61 @@ class BiometricController extends Controller
         return response()->json($fingerprints);
     }
 
+    /**
+     * Returns all active members with minimal data for the bridge's local cache.
+     * Called on startup and periodic refresh by the biometric bridge service.
+     */
+    public function getMembersForBiometric()
+    {
+        $members = User::with([
+            'memberships' => fn($q) => $q->where('is_active', true)
+                                         ->whereDate('end_date', '>=', now())
+                                         ->orderBy('end_date', 'desc'),
+        ])
+        ->where('role', 'socio')
+        ->get()
+        ->map(fn($u) => [
+            'id'                    => $u->id,
+            'name'                  => $u->name,
+            'photo_url'             => $u->photo ? asset('storage/' . $u->photo) : null,
+            'role'                  => $u->role,
+            'has_active_membership' => $u->memberships->isNotEmpty(),
+            'days_left'             => $u->memberships->first()
+                ? max(0, (int) now()->diffInDays($u->memberships->first()->end_date, false))
+                : 0,
+            'end_date'              => optional($u->memberships->first())->end_date,
+        ]);
+
+        return response()->json($members);
+    }
+
+    /**
+     * Receives scan logs queued offline by the bridge when internet was unavailable.
+     * Inserts them into scan_logs for historical reporting and attendance tracking.
+     */
+    public function syncScans(Request $request)
+    {
+        $data = $request->validate([
+            'scans'              => 'required|array',
+            'scans.*.user_id'   => 'required|integer|exists:users,id',
+            'scans.*.scanned_at' => 'required|string',
+            'scans.*.status'    => 'required|in:granted,denied',
+        ]);
+
+        $synced = 0;
+        foreach ($data['scans'] as $scan) {
+            ScanLog::create([
+                'user_id'    => $scan['user_id'],
+                'status'     => $scan['status'],
+                'reader_id'  => 'offline_queue',
+                'scanned_at' => $scan['scanned_at'],
+            ]);
+            $synced++;
+        }
+
+        return response()->json(['synced' => $synced]);
+    }
+
     public function getRecentScan()
     {
         $scan = ScanLog::with([

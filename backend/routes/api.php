@@ -69,6 +69,8 @@ Route::middleware(['auth:sanctum', 'admin'])->group(function () {
     Route::post('/biometric/verify', [BiometricController::class, 'verify']);
     Route::get('/admin/scans/recent', [BiometricController::class, 'getRecentScan']);
     Route::get('/biometric/templates', [BiometricController::class, 'getTemplates']);
+    Route::get('/biometric/members', [BiometricController::class, 'getMembersForBiometric']);
+    Route::post('/biometric/sync', [BiometricController::class, 'syncScans']);
 
     // Anuncios (admin)
     Route::get('/admin/announcements', [AnnouncementController::class, 'adminIndex']);

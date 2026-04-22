@@ -32,6 +32,7 @@ builder.Services.AddHttpClient();
 builder.Services.AddSingleton<FingerprintReader>();
 builder.Services.AddSingleton<SourceAFISMatcher>();
 builder.Services.AddSingleton<ApiClient>();
+builder.Services.AddSingleton<LocalCache>();
 builder.Services.AddSingleton<LocalServer>();
 builder.Services.AddHostedService<Worker>();
 

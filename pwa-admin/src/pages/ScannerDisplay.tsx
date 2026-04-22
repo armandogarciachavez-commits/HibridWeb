@@ -28,6 +28,21 @@ const ScannerDisplay = () => {
 
   useEffect(() => {
     const fetchRecentScan = async () => {
+      // 1. Intentar bridge local primero (más rápido, funciona offline)
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 800);
+        const res = await fetch('http://localhost:7072/recent-scan', { signal: ctrl.signal });
+        clearTimeout(timer);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.id) { setRecentScan(data); return; }
+          // Bridge respondió null (sin scan reciente) — no actualizar estado
+          return;
+        }
+      } catch { /* bridge no disponible — usar API remota */ }
+
+      // 2. Fallback: API remota (cuando el bridge no está corriendo)
       try {
         const res = await apiFetch('/admin/scans/recent');
         if (res.ok) {

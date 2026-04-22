@@ -10,23 +10,34 @@ public sealed class LocalServer : IDisposable
     private readonly FingerprintReader       _reader;
     private readonly SourceAFISMatcher       _matcher;
     private readonly ApiClient               _api;
+    private readonly LocalCache              _cache;
     private readonly ILogger<LocalServer>    _log;
     private readonly CancellationTokenSource _cts = new();
     private readonly SemaphoreSlim           _captureLock = new(1, 1);
 
     private Task? _loop;
     private Task? _scanLoop;
+    private Task? _syncLoop;
     private DateTime _lastCacheReload = DateTime.MinValue;
     private static readonly TimeSpan CacheRefreshInterval = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan CacheRetryInterval   = TimeSpan.FromSeconds(30);
     public bool Capturing => _captureLock.CurrentCount == 0;
 
+    // Último scan en memoria para el endpoint /recent-scan
+    private readonly object _lastScanLock = new();
+    private string?  _lastScanJson;
+    private DateTime _lastScanAt = DateTime.MinValue;
+
+    private static long _scanIdCounter = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
     public LocalServer(FingerprintReader reader, SourceAFISMatcher matcher,
-                       ApiClient api, IConfiguration cfg, ILogger<LocalServer> log)
+                       ApiClient api, LocalCache cache, IConfiguration cfg,
+                       ILogger<LocalServer> log)
     {
         _reader  = reader;
         _matcher = matcher;
         _api     = api;
+        _cache   = cache;
         _log     = log;
 
         int port = cfg.GetValue<int>("Bridge:LocalPort", 7072);
@@ -39,17 +50,43 @@ public sealed class LocalServer : IDisposable
         _log.LogInformation("Servidor local iniciado en {P}", _listener.Prefixes.First());
         _loop     = Task.Run(ListenLoop);
         _scanLoop = Task.Run(() => ScanLoop(_cts.Token));
-        // Pre-cargar templates al arrancar para evitar delay en el primer scan
+        _syncLoop = Task.Run(() => SyncLoop(_cts.Token));
+
+        // Pre-cargar templates y socios al arrancar
         _ = Task.Run(async () =>
         {
             try
             {
+                // ── Templates ──
                 var templates = await _api.GetTemplatesAsync();
-                _matcher.ReloadCache(templates);
-                _lastCacheReload = DateTime.UtcNow;
-                _log.LogInformation("Templates pre-cargados al inicio: {N}.", _matcher.CacheSize);
+                if (templates.Count > 0)
+                {
+                    _matcher.ReloadCache(templates);
+                    _cache.SaveTemplates(templates);
+                    _lastCacheReload = DateTime.UtcNow;
+                    _log.LogInformation("Templates pre-cargados al inicio: {N}.", _matcher.CacheSize);
+                }
+                else
+                {
+                    var cached = _cache.LoadTemplates();
+                    if (cached.Count > 0)
+                    {
+                        _matcher.ReloadCache(cached);
+                        _lastCacheReload = DateTime.UtcNow;
+                        _log.LogInformation("Templates del disco (offline fallback): {N}.", cached.Count);
+                    }
+                }
+
+                // ── Socios ──
+                var members = await _api.GetMembersAsync();
+                if (members.Count > 0)
+                    _cache.SaveMembers(members);
+                else
+                    _cache.LoadMembers();  // fallback a disco si no hay internet
+
+                _log.LogInformation("Socios en cache: {N}.", _cache.MemberCount);
             }
-            catch (Exception ex) { _log.LogWarning(ex, "Pre-carga de templates falló."); }
+            catch (Exception ex) { _log.LogWarning(ex, "Pre-carga falló."); }
         });
     }
 
@@ -85,37 +122,38 @@ public sealed class LocalServer : IDisposable
 
                 if (probePng == null) continue;
 
-                // Recargar templates si el cache está vacío (respetando intervalo de reintento)
-                // o si ha pasado el intervalo normal de refresco
+                // Recargar cache si procede
                 bool cacheEmpty = _matcher.CacheSize == 0
                     && (DateTime.UtcNow - _lastCacheReload) >= CacheRetryInterval;
                 bool cacheStale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
                 if (cacheEmpty || cacheStale)
-                {
-                    var templates = await _api.GetTemplatesAsync();
-                    _matcher.ReloadCache(templates);
-                    _lastCacheReload = DateTime.UtcNow;
-                    _log.LogInformation("Cache recargado: {N} templates.", _matcher.CacheSize);
-                }
+                    await RefreshCacheAsync();
 
                 var matchedId = _matcher.Match(probePng, _log);
 
                 if (matchedId.HasValue)
                 {
                     _log.LogInformation("Socio identificado: user_id={Id}", matchedId.Value);
-                    var (ok, msg) = await _api.VerifyAsync(matchedId.Value);
-                    _log.LogInformation("Acceso: {S} — {M}", ok ? "GRANTED" : "DENIED", msg);
+
+                    // 1. Resultado inmediato desde cache local (sin esperar internet)
+                    var member      = _cache.GetMember(matchedId.Value);
+                    bool granted    = member?.HasActiveMembership ?? false;
+                    string status   = granted ? "granted" : "denied";
+                    SetLastScan(matchedId.Value, status, member);
+
+                    // 2. Registrar en la API remota (best-effort, 5 s timeout)
+                    var (_, _, isOnline) = await _api.VerifyAsync(matchedId.Value);
+                    if (!isOnline)
+                        _cache.EnqueueScan(new PendingScan(matchedId.Value, DateTime.UtcNow, status));
+
+                    _log.LogInformation("Acceso: {S} (online={O})", status.ToUpper(), isOnline);
                     await Task.Delay(1_000, ct);
                 }
                 else
                 {
-                    // Sin match: si quedan usuarios recientes sin cargar, forzar recarga inmediata
+                    // Sin match: forzar recarga si el cache puede estar desactualizado
                     if ((DateTime.UtcNow - _lastCacheReload) >= TimeSpan.FromSeconds(30))
-                    {
-                        var templates = await _api.GetTemplatesAsync();
-                        _matcher.ReloadCache(templates);
-                        _lastCacheReload = DateTime.UtcNow;
-                    }
+                        await RefreshCacheAsync();
                     await Task.Delay(1_000, ct);
                 }
             }
@@ -125,6 +163,90 @@ public sealed class LocalServer : IDisposable
                 _log.LogError(ex, "Error en scan loop");
                 await Task.Delay(2_000, ct);
             }
+        }
+    }
+
+    private async Task RefreshCacheAsync()
+    {
+        var templates = await _api.GetTemplatesAsync();
+        if (templates.Count > 0)
+        {
+            _matcher.ReloadCache(templates);
+            _cache.SaveTemplates(templates);
+        }
+        var members = await _api.GetMembersAsync();
+        if (members.Count > 0)
+            _cache.SaveMembers(members);
+        _lastCacheReload = DateTime.UtcNow;
+        _log.LogInformation("Cache recargado: {T} templates, {M} socios.",
+            _matcher.CacheSize, _cache.MemberCount);
+    }
+
+    // ── Sync loop: sube cola offline cada 60 s ────────────────────────────
+    private async Task SyncLoop(CancellationToken ct)
+    {
+        _log.LogInformation("Sync loop iniciado.");
+        while (!ct.IsCancellationRequested)
+        {
+            try
+            {
+                await Task.Delay(60_000, ct);
+
+                if (_cache.QueueCount == 0) continue;
+
+                var pending = _cache.DrainQueue();
+                bool synced = await _api.SyncScansAsync(pending);
+                if (!synced)
+                {
+                    // Reencolar si no hubo conexión
+                    foreach (var s in pending) _cache.EnqueueScan(s);
+                    _log.LogWarning("SyncLoop: {N} scans reencolados (sin internet).", pending.Count);
+                }
+                else
+                {
+                    _log.LogInformation("SyncLoop: {N} scans offline sincronizados.", pending.Count);
+                }
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception ex) { _log.LogError(ex, "Error en sync loop"); }
+        }
+    }
+
+    // ── Guarda el último scan en memoria (con formato para ScannerDisplay) ─
+    private void SetLastScan(int userId, string status, CachedMember? member)
+    {
+        long scanId    = System.Threading.Interlocked.Increment(ref _scanIdCounter);
+        var  scannedAt = DateTime.UtcNow;
+
+        // Membresía simplificada (sólo lo que ScannerDisplay necesita)
+        var memberships = new List<object>();
+        if (member?.HasActiveMembership == true)
+            memberships.Add(new { is_active = true, end_date = member.EndDate ?? "" });
+
+        object userObj = member == null
+            ? new { id = userId, name = "Socio", photo_url = (string?)null,
+                    role = "socio", memberships = (object)new object[] { },
+                    reservations = new object[] { } }
+            : new { id       = member.Id,
+                    name     = member.Name,
+                    photo_url = member.PhotoUrl,
+                    role     = member.Role,
+                    memberships = (object)memberships,
+                    reservations = (object)new object[] { } };
+
+        string json = JsonSerializer.Serialize(new
+        {
+            id         = scanId,
+            user_id    = userId,
+            status,
+            scanned_at = scannedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+            user       = userObj,
+        });
+
+        lock (_lastScanLock)
+        {
+            _lastScanJson = json;
+            _lastScanAt   = scannedAt;
         }
     }
 
@@ -160,7 +282,24 @@ public sealed class LocalServer : IDisposable
         try
         {
             if (path == "/status" && req.HttpMethod == "GET")
-                await WriteJson(res, new { ready = _reader.IsReady, capturing = Capturing });
+                await WriteJson(res, new
+                {
+                    ready    = _reader.IsReady,
+                    capturing = Capturing,
+                    members  = _cache.MemberCount,
+                    queue    = _cache.QueueCount,
+                });
+
+            else if (path == "/recent-scan" && req.HttpMethod == "GET")
+            {
+                string? json;
+                DateTime scanAt;
+                lock (_lastScanLock) { json = _lastScanJson; scanAt = _lastScanAt; }
+
+                // Expira igual que la API remota: 30 segundos
+                bool valid = json != null && (DateTime.UtcNow - scanAt).TotalSeconds <= 30;
+                await WriteRaw(res, valid ? json! : "null");
+            }
 
             else if (path == "/enroll" && req.HttpMethod == "POST")
                 await HandleEnroll(req, res);
@@ -183,7 +322,7 @@ public sealed class LocalServer : IDisposable
         }
     }
 
-    // ── Enrolamiento (1 captura = 1 template SourceAFIS) ─────────────────
+    // ── Enrolamiento ──────────────────────────────────────────────────────
     private async Task HandleEnroll(HttpListenerRequest req, HttpListenerResponse res)
     {
         using var sr = new StreamReader(req.InputStream);
@@ -201,7 +340,6 @@ public sealed class LocalServer : IDisposable
         try
         {
             _log.LogInformation("Capturando huella para user_id={Id}...", userId);
-
             using var enrollCts = CancellationTokenSource.CreateLinkedTokenSource(_cts.Token);
             enrollCts.CancelAfter(TimeSpan.FromSeconds(20));
 
@@ -212,14 +350,12 @@ public sealed class LocalServer : IDisposable
                 return;
             }
 
-            // Serializa el template SourceAFIS (1-5KB) en lugar del PNG crudo (~200KB)
             var templateBase64 = SourceAFISMatcher.BuildAndSerialize(png);
             _log.LogInformation("Template serializado: {KB}KB", templateBase64.Length / 1024);
             var (ok, msg) = await _api.EnrollAsync(userId, templateBase64);
 
             if (ok)
             {
-                // Actualizar cache inmediatamente
                 _matcher.AddToCache(userId, templateBase64);
                 _log.LogInformation("Huella enrolada para user_id={Id}.", userId);
             }
@@ -254,16 +390,12 @@ public sealed class LocalServer : IDisposable
 
             bool stale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
             if (_matcher.CacheSize == 0 || stale)
-            {
-                var templates = await _api.GetTemplatesAsync();
-                _matcher.ReloadCache(templates);
-                _lastCacheReload = DateTime.UtcNow;
-            }
+                await RefreshCacheAsync();
 
             var uid = _matcher.Match(png, _log);
             if (uid.HasValue)
             {
-                var (ok, msg) = await _api.VerifyAsync(uid.Value);
+                var (ok, msg, _) = await _api.VerifyAsync(uid.Value);
                 await WriteJson(res, new { ok, msg }, ok ? 200 : 403);
             }
             else
@@ -274,10 +406,20 @@ public sealed class LocalServer : IDisposable
         finally { _captureLock.Release(); }
     }
 
+    // ── Helpers de respuesta HTTP ─────────────────────────────────────────
     static async Task WriteJson(HttpListenerResponse res, object obj, int status = 200)
     {
         res.StatusCode = status;
         byte[] buf = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(obj));
+        res.ContentLength64 = buf.Length;
+        await res.OutputStream.WriteAsync(buf);
+        res.OutputStream.Close();
+    }
+
+    static async Task WriteRaw(HttpListenerResponse res, string json, int status = 200)
+    {
+        res.StatusCode = status;
+        byte[] buf = Encoding.UTF8.GetBytes(json);
         res.ContentLength64 = buf.Length;
         await res.OutputStream.WriteAsync(buf);
         res.OutputStream.Close();
