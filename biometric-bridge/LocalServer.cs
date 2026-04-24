@@ -316,6 +316,9 @@ public sealed class LocalServer : IDisposable
                 _reader.AbortCapture();
                 await WriteJson(res, new { ok = true, msg = "Captura cancelada." });
             }
+            else if ((path == "/" || path == "/display") && req.HttpMethod == "GET")
+                await WriteHtml(res, ScannerHtml);
+
             else
                 await WriteJson(res, new { msg = "Ruta no encontrada." }, 404);
         }
@@ -434,6 +437,153 @@ public sealed class LocalServer : IDisposable
         await res.OutputStream.WriteAsync(buf);
         res.OutputStream.Close();
     }
+
+    static async Task WriteHtml(HttpListenerResponse res, string html, int status = 200)
+    {
+        res.StatusCode  = status;
+        res.ContentType = "text/html; charset=utf-8";
+        byte[] buf = Encoding.UTF8.GetBytes(html);
+        res.ContentLength64 = buf.Length;
+        await res.OutputStream.WriteAsync(buf);
+        res.OutputStream.Close();
+    }
+
+    // ── Pantalla de scanner local (sirve sin internet) ────────────────────
+    private const string ScannerHtml = """
+        <!DOCTYPE html><html lang="es"><head>
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>HybridTraining · Scanner</title>
+        <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{width:100%;height:100%}
+        body{background:#050505;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+          display:flex;flex-direction:column;justify-content:center;align-items:center;
+          min-height:100vh;overflow:hidden;color:#fff}
+        #idle{text-align:center}
+        #idle h1{color:#3a3a3a;font-size:clamp(1.8rem,4vw,3.5rem);font-weight:800;
+          text-transform:uppercase;letter-spacing:4px}
+        #idle p{color:#2a2a2a;font-size:clamp(0.9rem,1.8vw,1.4rem);margin-top:16px}
+        #card{width:80vw;max-height:80vh;border-radius:20px;
+          padding:clamp(16px,3vh,32px) clamp(20px,3vw,40px);
+          box-sizing:border-box;display:none;flex-direction:column;
+          gap:clamp(10px,2vh,20px);overflow:hidden;
+          background:linear-gradient(145deg,rgba(255,255,255,0.04),rgba(0,0,0,0.85))}
+        @keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+        .fade{animation:fadeIn .4s ease-out}
+        .hdr{text-align:center;padding-bottom:clamp(8px,1.5vh,16px);border-bottom:1px solid #222}
+        .hdr h2{font-size:clamp(1.6rem,4vw,3.2rem);font-weight:900;text-transform:uppercase;line-height:1.1}
+        .hdr .ts{color:#666;font-size:clamp(0.8rem,1.4vw,1.1rem);margin-top:6px}
+        .bdy{display:flex;gap:clamp(16px,3vw,36px);align-items:flex-start;flex:1;min-height:0}
+        .lft{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.5vh,14px)}
+        .avatar{width:clamp(90px,13vh,160px);height:clamp(90px,13vh,160px);border-radius:50%;
+          border:4px solid;object-fit:cover}
+        .avatar-init{width:clamp(90px,13vh,160px);height:clamp(90px,13vh,160px);border-radius:50%;
+          border:4px solid;display:flex;align-items:center;justify-content:center;
+          font-size:clamp(2rem,5vh,4rem);font-weight:700}
+        .uname{font-size:clamp(0.9rem,1.8vw,1.5rem);font-weight:700;text-align:center}
+        .urole{color:#888;font-size:clamp(0.7rem,1.1vw,0.9rem);text-transform:uppercase;
+          letter-spacing:2px;text-align:center;margin-top:4px}
+        .rgt{flex:1;display:flex;flex-direction:column;gap:clamp(8px,1.5vh,14px);min-width:0}
+        .box{background:rgba(255,255,255,0.03);padding:clamp(10px,2vh,18px) clamp(12px,2vw,20px);
+          border-radius:12px;border:1px solid #2a2a2a}
+        .box-lbl{color:#666;font-size:clamp(0.65rem,1vw,0.8rem);text-transform:uppercase;
+          letter-spacing:2px;font-weight:700;margin-bottom:8px}
+        .badge{display:inline-block;padding:4px 16px;border-radius:20px;font-weight:700;
+          font-size:clamp(0.8rem,1.4vw,1.1rem)}
+        .ri{display:flex;justify-content:space-between;align-items:center;
+          background:#111;padding:clamp(8px,1.2vh,12px) clamp(10px,1.5vw,16px);
+          border-radius:8px;border-left:4px solid}
+        .rt{background:rgba(255,255,255,0.08);padding:4px 12px;border-radius:6px;
+          font-size:clamp(0.75rem,1.2vw,0.95rem);font-weight:700;white-space:nowrap}
+        </style></head><body>
+        <div id="idle">
+          <h1>Bienvenido a HybridTraining</h1>
+          <p>Por favor, coloque su huella en el lector</p>
+        </div>
+        <div id="card"></div>
+        <script>
+        var lastId=null;
+        function fmtTime(ts){
+          return new Date(ts.replace(' ','T')+'Z').toLocaleTimeString('es-MX',
+            {timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+        }
+        function initials(n){return(n||'').split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase()||'?';}
+        function bgColor(n){var h=0;for(var i=0;i<(n||'').length;i++)h=(h*31+n.charCodeAt(i))%360;return'hsl('+h+',50%,35%)';}
+        function renderIdle(){document.getElementById('idle').style.display='block';document.getElementById('card').style.display='none';}
+        function render(s){
+          var acc=s.status==='granted'?'#00cc66':'#ff4444';
+          var u=s.user||{};
+          var granted=s.status==='granted';
+          var mbs=u.memberships||[];
+          var mp=null;for(var i=0;i<mbs.length;i++){if(mbs[i].is_active){mp=mbs[i];break;}}
+          var activePlan=granted?mp:null;
+          var days=0;
+          if(activePlan&&activePlan.end_date)days=Math.ceil((new Date(activePlan.end_date)-Date.now())/864e5);
+          var fname=(u.name||'').split(' ')[0];
+          var photoHtml;
+          if(u.photo_url){
+            photoHtml='<img class="avatar" style="border-color:'+acc+'" src="'+u.photo_url+'" alt="'+
+              (u.name||'')+'" onerror="this.style.display=\'none\';this.nextElementSibling.style.display=\'flex\'">'+
+              '<div class="avatar-init" style="border-color:'+acc+';background:'+bgColor(u.name)+';display:none">'+initials(u.name)+'</div>';
+          }else{
+            photoHtml='<div class="avatar-init" style="border-color:'+acc+';background:'+bgColor(u.name)+'">'+initials(u.name)+'</div>';
+          }
+          var membHtml=activePlan?
+            '<span class="badge" style="background:rgba(0,204,102,.15);color:#00cc66">ACTIVO</span>'+
+            '<span style="color:#ccc;font-size:clamp(0.75rem,1.3vw,1rem)">Renueva en <strong style="color:'+(days<=7?'#ff9900':'#00cc66')+'">'+days+' d\u00edas</strong></span>':
+            '<span class="badge" style="background:rgba(255,68,68,.15);color:#ff4444">INACTIVO</span>'+
+            '<span style="color:#ccc;font-size:clamp(0.75rem,1.3vw,1rem)">Sin plan vigente.</span>';
+          var rsvs=u.reservations||[];
+          var resvHtml='';
+          if(rsvs.length){
+            for(var j=0;j<rsvs.length;j++){
+              var r=rsvs[j];var cs=r.class_session||{};var gc=cs.gym_class||{};var clr=gc.color||'#00cc66';
+              resvHtml+='<div class="ri" style="border-left-color:'+clr+'">'+
+                '<div><span style="color:#fff;font-size:clamp(0.75rem,1.3vw,1rem);font-weight:700;display:block;margin-bottom:2px">'+(gc.name||'Clase')+'</span>'+
+                '<span style="color:#777;font-size:clamp(0.65rem,1vw,0.8rem)">Instructor: '+(cs.instructor||'Gimnasio')+'</span></div>'+
+                '<div class="rt">'+(cs.start_time||'').substring(0,5)+' - '+(cs.end_time||'').substring(0,5)+'</div></div>';
+            }
+          }else{
+            resvHtml='<p style="color:#555;font-style:italic;font-size:clamp(0.75rem,1.2vw,0.95rem)">No hay clases separadas para hoy.</p>';
+          }
+          var card=document.getElementById('card');
+          card.className='fade';
+          card.style.cssText='display:flex;flex-direction:column;width:80vw;max-height:80vh;'+
+            'border-radius:20px;padding:clamp(16px,3vh,32px) clamp(20px,3vw,40px);'+
+            'gap:clamp(10px,2vh,20px);overflow:hidden;box-sizing:border-box;'+
+            'border:3px solid '+acc+';'+
+            'background:linear-gradient(145deg,rgba(255,255,255,0.04),rgba(0,0,0,0.85));'+
+            'box-shadow:0 8px 40px '+(granted?'rgba(0,204,102,0.18)':'rgba(255,68,68,0.18)')+';';
+          card.innerHTML=
+            '<div class="hdr"><h2 style="color:'+acc+'">'+(granted?'\u00a1BIENVENIDO, '+fname+'!':'ACCESO DENEGADO')+'</h2>'+
+            '<p class="ts">'+(s.scanned_at?fmtTime(s.scanned_at):'')+' </p></div>'+
+            '<div class="bdy">'+
+              '<div class="lft">'+photoHtml+
+                '<div><div class="uname">'+(u.name||'')+'</div><div class="urole">'+(u.role||'')+'</div></div>'+
+              '</div>'+
+              '<div class="rgt">'+
+                '<div class="box"><div class="box-lbl">Membres\u00eda</div>'+
+                '<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'+membHtml+'</div></div>'+
+                '<div class="box" style="flex:1;min-height:0;overflow:hidden"><div class="box-lbl">Agenda del D\u00eda</div>'+
+                '<div style="display:flex;flex-direction:column;gap:8px">'+resvHtml+'</div></div>'+
+              '</div>'+
+            '</div>';
+          document.getElementById('idle').style.display='none';
+        }
+        function poll(){
+          var ctrl=new XMLHttpRequest();
+          ctrl.open('GET','/recent-scan',true);
+          ctrl.timeout=800;
+          ctrl.onload=function(){
+            try{var d=JSON.parse(ctrl.responseText);if(d&&d.id){render(d);}else{renderIdle();}}catch(e){renderIdle();}
+          };
+          ctrl.onerror=ctrl.ontimeout=function(){renderIdle();};
+          ctrl.send();
+        }
+        setInterval(poll,500);poll();
+        try{document.documentElement.requestFullscreen();}catch(e){}
+        </script></body></html>
+        """;
 
     public void Dispose()
     {
