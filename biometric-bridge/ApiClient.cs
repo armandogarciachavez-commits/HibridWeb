@@ -113,7 +113,7 @@ public sealed class ApiClient
     {
         try
         {
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(2));
             var payload = JsonSerializer.Serialize(new { user_id = userId });
             _log.LogInformation("VerifyAsync → user_id={U}", userId);
             var content = new StringContent(payload, Encoding.UTF8, "application/json");

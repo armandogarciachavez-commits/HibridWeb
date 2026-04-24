@@ -52,41 +52,43 @@ public sealed class LocalServer : IDisposable
         _scanLoop = Task.Run(() => ScanLoop(_cts.Token));
         _syncLoop = Task.Run(() => SyncLoop(_cts.Token));
 
-        // Pre-cargar templates y socios al arrancar
+        // ── Arranque offline-first ────────────────────────────────────────────
+        // 1. Cargar del disco INMEDIATAMENTE (sin internet) → el scanner funciona al instante
+        // 2. Refrescar desde la API en segundo plano → actualiza si hay internet
+        var diskTemplates = _cache.LoadTemplates();
+        if (diskTemplates.Count > 0)
+        {
+            _matcher.ReloadCache(diskTemplates);
+            _lastCacheReload = DateTime.UtcNow;
+            _log.LogInformation("Templates del disco cargados al inicio: {N}.", diskTemplates.Count);
+        }
+        _cache.LoadMembers();
+        _log.LogInformation("Socios del disco cargados al inicio: {N}.", _cache.MemberCount);
+
+        // Refresco desde API en background (no bloquea el scan loop)
         _ = Task.Run(async () =>
         {
             try
             {
-                // ── Templates ──
+                await Task.Delay(3_000);   // pequeña pausa para que el sistema esté listo
+
                 var templates = await _api.GetTemplatesAsync();
                 if (templates.Count > 0)
                 {
                     _matcher.ReloadCache(templates);
                     _cache.SaveTemplates(templates);
                     _lastCacheReload = DateTime.UtcNow;
-                    _log.LogInformation("Templates pre-cargados al inicio: {N}.", _matcher.CacheSize);
-                }
-                else
-                {
-                    var cached = _cache.LoadTemplates();
-                    if (cached.Count > 0)
-                    {
-                        _matcher.ReloadCache(cached);
-                        _lastCacheReload = DateTime.UtcNow;
-                        _log.LogInformation("Templates del disco (offline fallback): {N}.", cached.Count);
-                    }
+                    _log.LogInformation("Templates actualizados desde API: {N}.", _matcher.CacheSize);
                 }
 
-                // ── Socios ──
                 var members = await _api.GetMembersAsync();
                 if (members.Count > 0)
+                {
                     _cache.SaveMembers(members);
-                else
-                    _cache.LoadMembers();  // fallback a disco si no hay internet
-
-                _log.LogInformation("Socios en cache: {N}.", _cache.MemberCount);
+                    _log.LogInformation("Socios actualizados desde API: {N}.", _cache.MemberCount);
+                }
             }
-            catch (Exception ex) { _log.LogWarning(ex, "Pre-carga falló."); }
+            catch (Exception ex) { _log.LogWarning(ex, "Refresco inicial desde API falló (sin internet)."); }
         });
     }
 
