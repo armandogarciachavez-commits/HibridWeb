@@ -53,9 +53,10 @@ public sealed class ApiClient
     {
         try
         {
-            var res = await _http.GetAsync($"{_base}/api/biometric/templates");
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var res = await _http.GetAsync($"{_base}/api/biometric/templates", cts.Token);
             if (!res.IsSuccessStatusCode) return [];
-            var items  = await res.Content.ReadFromJsonAsync<JsonElement[]>() ?? [];
+            var items  = await res.Content.ReadFromJsonAsync<JsonElement[]>(cts.Token) ?? [];
             var result = new List<(int, string)>();
             foreach (var item in items)
             {

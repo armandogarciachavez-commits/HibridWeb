@@ -93,6 +93,8 @@ public sealed class LocalServer : IDisposable
     }
 
     // ── Scan loop continuo ────────────────────────────────────────────────
+    // IMPORTANTE: este loop NO hace llamadas a la API. Solo captura, matchea
+    // y muestra. Todo lo que involucre red está en SyncLoop.
     private async Task ScanLoop(CancellationToken ct)
     {
         _log.LogInformation("Modo escaneo continuo iniciado.");
@@ -124,38 +126,31 @@ public sealed class LocalServer : IDisposable
 
                 if (probePng == null) continue;
 
-                // Recargar cache si procede
-                bool cacheEmpty = _matcher.CacheSize == 0
-                    && (DateTime.UtcNow - _lastCacheReload) >= CacheRetryInterval;
-                bool cacheStale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
-                if (cacheEmpty || cacheStale)
-                    await RefreshCacheAsync();
-
                 var matchedId = _matcher.Match(probePng, _log);
 
                 if (matchedId.HasValue)
                 {
                     _log.LogInformation("Socio identificado: user_id={Id}", matchedId.Value);
 
-                    // 1. Resultado inmediato desde cache local (sin esperar internet)
-                    var member      = _cache.GetMember(matchedId.Value);
-                    bool granted    = member?.HasActiveMembership ?? false;
-                    string status   = granted ? "granted" : "denied";
+                    // 1. Resultado inmediato desde cache local (sin red)
+                    var member   = _cache.GetMember(matchedId.Value);
+                    bool granted = member?.HasActiveMembership ?? false;
+                    string status = granted ? "granted" : "denied";
                     SetLastScan(matchedId.Value, status, member);
 
-                    // 2. Registrar en la API remota (best-effort, 5 s timeout)
-                    var (_, _, isOnline) = await _api.VerifyAsync(matchedId.Value);
-                    if (!isOnline)
-                        _cache.EnqueueScan(new PendingScan(matchedId.Value, DateTime.UtcNow, status));
+                    // 2. Registrar en API remota en background (no bloquea el loop)
+                    _ = Task.Run(async () =>
+                    {
+                        var (_, _, isOnline) = await _api.VerifyAsync(matchedId.Value);
+                        if (!isOnline)
+                            _cache.EnqueueScan(new PendingScan(matchedId.Value, DateTime.UtcNow, status));
+                        _log.LogInformation("Acceso: {S} (online={O})", status.ToUpper(), isOnline);
+                    });
 
-                    _log.LogInformation("Acceso: {S} (online={O})", status.ToUpper(), isOnline);
                     await Task.Delay(1_000, ct);
                 }
                 else
                 {
-                    // Sin match: forzar recarga si el cache puede estar desactualizado
-                    if ((DateTime.UtcNow - _lastCacheReload) >= TimeSpan.FromSeconds(30))
-                        await RefreshCacheAsync();
                     await Task.Delay(1_000, ct);
                 }
             }
@@ -168,23 +163,8 @@ public sealed class LocalServer : IDisposable
         }
     }
 
-    private async Task RefreshCacheAsync()
-    {
-        var templates = await _api.GetTemplatesAsync();
-        if (templates.Count > 0)
-        {
-            _matcher.ReloadCache(templates);
-            _cache.SaveTemplates(templates);
-        }
-        var members = await _api.GetMembersAsync();
-        if (members.Count > 0)
-            _cache.SaveMembers(members);
-        _lastCacheReload = DateTime.UtcNow;
-        _log.LogInformation("Cache recargado: {T} templates, {M} socios.",
-            _matcher.CacheSize, _cache.MemberCount);
-    }
-
-    // ── Sync loop: sube cola offline cada 60 s ────────────────────────────
+    // ── Sync loop: refresca cache + sube cola offline ─────────────────────
+    // Toda llamada a la API ocurre aquí, nunca en ScanLoop.
     private async Task SyncLoop(CancellationToken ct)
     {
         _log.LogInformation("Sync loop iniciado.");
@@ -194,19 +174,41 @@ public sealed class LocalServer : IDisposable
             {
                 await Task.Delay(60_000, ct);
 
-                if (_cache.QueueCount == 0) continue;
-
-                var pending = _cache.DrainQueue();
-                bool synced = await _api.SyncScansAsync(pending);
-                if (!synced)
+                // 1. Sincronizar cola de scans offline
+                if (_cache.QueueCount > 0)
                 {
-                    // Reencolar si no hubo conexión
-                    foreach (var s in pending) _cache.EnqueueScan(s);
-                    _log.LogWarning("SyncLoop: {N} scans reencolados (sin internet).", pending.Count);
+                    var pending = _cache.DrainQueue();
+                    bool synced = await _api.SyncScansAsync(pending);
+                    if (!synced)
+                    {
+                        foreach (var s in pending) _cache.EnqueueScan(s);
+                        _log.LogWarning("SyncLoop: {N} scans reencolados (sin internet).", pending.Count);
+                    }
+                    else
+                    {
+                        _log.LogInformation("SyncLoop: {N} scans offline sincronizados.", pending.Count);
+                    }
                 }
-                else
+
+                // 2. Refrescar templates y socios si es necesario
+                bool stale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
+                if (stale || _matcher.CacheSize == 0)
                 {
-                    _log.LogInformation("SyncLoop: {N} scans offline sincronizados.", pending.Count);
+                    var templates = await _api.GetTemplatesAsync();
+                    if (templates.Count > 0)
+                    {
+                        _matcher.ReloadCache(templates);
+                        _cache.SaveTemplates(templates);
+                        _log.LogInformation("SyncLoop: templates actualizados: {N}.", _matcher.CacheSize);
+                    }
+                    var members = await _api.GetMembersAsync();
+                    if (members.Count > 0)
+                    {
+                        _cache.SaveMembers(members);
+                        _log.LogInformation("SyncLoop: socios actualizados: {N}.", _cache.MemberCount);
+                    }
+                    if (templates.Count > 0 || members.Count > 0)
+                        _lastCacheReload = DateTime.UtcNow;
                 }
             }
             catch (OperationCanceledException) { break; }
