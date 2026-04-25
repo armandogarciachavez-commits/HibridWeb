@@ -23,16 +23,25 @@ const Dashboard = () => {
     fetchUsers();
 
     // Polling recent scans every 3 seconds
+    // Si el VPS no responde (sin internet) → fallback al bridge local
     const fetchRecentScan = async () => {
       try {
         const res = await apiFetch('/admin/scans/recent');
         if (res.ok) {
           const data = await res.json();
+          if (data && data.id) { setRecentScan(data); return; }
+        }
+      } catch (e) { /* VPS sin respuesta — intentar bridge local */ }
+
+      // Fallback: bridge local (funciona 100% offline)
+      try {
+        const res = await fetch('http://localhost:7072/recent-scan',
+          { signal: AbortSignal.timeout(800) });
+        if (res.ok) {
+          const data = await res.json();
           setRecentScan(data && data.id ? data : null);
         }
-      } catch (e) {
-        // Silent block to avoid console spam
-      }
+      } catch (e) { /* sin bridge tampoco — ignorar */ }
     };
     fetchRecentScan();
     const scanInterval = setInterval(fetchRecentScan, 3000);
