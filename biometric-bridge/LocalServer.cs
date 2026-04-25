@@ -353,6 +353,16 @@ public sealed class LocalServer : IDisposable
                 _reader.AbortCapture();
                 await WriteJson(res, new { ok = true, msg = "Captura cancelada." });
             }
+            else if (path == "/proxy/reservations" && req.HttpMethod == "GET")
+            {
+                // Proxy: el browser local pide reservaciones al bridge, el bridge las busca en el VPS.
+                // Si no hay internet, devuelve [] sin romper nada.
+                if (!int.TryParse(req.QueryString["user_id"], out int uid))
+                { await WriteRaw(res, "[]"); return; }
+                var rsvs = await _api.GetReservationsForUserAsync(uid);
+                await WriteRaw(res, JsonSerializer.Serialize(rsvs));
+            }
+
             else if ((path == "/" || path == "/display") && req.HttpMethod == "GET")
                 await WriteHtml(res, ScannerHtml);
 
@@ -629,7 +639,31 @@ public sealed class LocalServer : IDisposable
         function poll(){
           var x=new XMLHttpRequest();x.open('GET','/recent-scan',true);x.timeout=800;
           x.onload=function(){
-            try{var d=JSON.parse(x.responseText);if(d&&d.id){render(d);}else{renderIdle();}}catch(e){renderIdle();}
+            try{
+              var d=JSON.parse(x.responseText);
+              if(d&&d.id){
+                render(d);
+                /* Nuevo scan: buscar reservaciones vía proxy del bridge (falla silencioso offline) */
+                if(d.id!==lastId){
+                  lastId=d.id;
+                  setTimeout(function(){
+                    var r=new XMLHttpRequest();
+                    r.open('GET','/proxy/reservations?user_id='+d.user_id,true);
+                    r.timeout=3000;
+                    r.onload=function(){
+                      try{
+                        var rsvs=JSON.parse(r.responseText);
+                        if(rsvs&&rsvs.length>0){
+                          d.user.reservations=rsvs;
+                          render(d);  /* re-render con agenda del día */
+                        }
+                      }catch(e){}
+                    };
+                    r.send();
+                  },2000);
+                }
+              }else{renderIdle();}
+            }catch(e){renderIdle();}
           };
           x.onerror=x.ontimeout=function(){renderIdle();};x.send();
         }

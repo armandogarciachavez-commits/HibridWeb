@@ -142,6 +142,25 @@ public sealed class ApiClient
         }
     }
 
+    // ── Obtener reservaciones del día para un socio (para proxy local) ──────
+    // Reutiliza el endpoint /admin/scans/recent que ya devuelve user.reservations.
+    // Retorna [] si no hay internet o si el último scan no corresponde al userId.
+    public async Task<JsonElement[]> GetReservationsForUserAsync(int userId)
+    {
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var res = await _http.GetAsync($"{_base}/admin/scans/recent", cts.Token);
+            if (!res.IsSuccessStatusCode) return [];
+            var scan = await res.Content.ReadFromJsonAsync<JsonElement>(cts.Token);
+            if (!scan.TryGetProperty("user_id", out var uid) || uid.GetInt32() != userId) return [];
+            if (!scan.TryGetProperty("user", out var user)) return [];
+            if (!user.TryGetProperty("reservations", out var rsvs)) return [];
+            return [.. rsvs.EnumerateArray()];
+        }
+        catch { return []; }
+    }
+
     // ── Sincronizar cola de scans offline ─────────────────────────────────
     public async Task<bool> SyncScansAsync(List<PendingScan> scans)
     {
