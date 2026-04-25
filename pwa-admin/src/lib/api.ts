@@ -70,6 +70,8 @@ export async function apiFetch(path: string, options: RequestInit = {}): Promise
     ...options,
     headers,
     cache: 'no-store',
+    // Timeout de 5s: evita que la app quede colgada sin internet
+    signal: options.signal ?? AbortSignal.timeout(5000),
   });
 
   if (response.status === 401) {

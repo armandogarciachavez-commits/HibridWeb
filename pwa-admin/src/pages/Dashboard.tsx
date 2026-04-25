@@ -26,7 +26,8 @@ const Dashboard = () => {
     // Si el VPS no responde (sin internet) → fallback al bridge local
     const fetchRecentScan = async () => {
       try {
-        const res = await apiFetch('/admin/scans/recent');
+        const res = await apiFetch('/admin/scans/recent',
+          { signal: AbortSignal.timeout(2000) });
         if (res.ok) {
           const data = await res.json();
           if (data && data.id) { setRecentScan(data); return; }
