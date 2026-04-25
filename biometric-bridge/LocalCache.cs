@@ -125,6 +125,19 @@ public sealed class LocalCache
 
     public int MemberCount { get { lock (_membersLock) return _members.Count; } }
 
+    public List<CachedMember> SearchMembers(string query)
+    {
+        if (string.IsNullOrWhiteSpace(query)) return [];
+        var q = query.Trim().ToLowerInvariant();
+        lock (_membersLock)
+        {
+            return _members
+                .Where(m => m.Name.ToLowerInvariant().Contains(q))
+                .Take(8)
+                .ToList();
+        }
+    }
+
     // ── Scan Queue ─────────────────────────────────────────────────────────
 
     public void EnqueueScan(PendingScan scan)

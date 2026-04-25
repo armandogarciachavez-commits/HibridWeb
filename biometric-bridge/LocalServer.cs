@@ -353,6 +353,23 @@ public sealed class LocalServer : IDisposable
                 _reader.AbortCapture();
                 await WriteJson(res, new { ok = true, msg = "Captura cancelada." });
             }
+            else if (path == "/search" && req.HttpMethod == "GET")
+            {
+                string q = req.QueryString["q"] ?? "";
+                var found = _cache.SearchMembers(q);
+                await WriteJson(res, found.Select(m => new {
+                    id = m.Id, name = m.Name, photo_url = m.PhotoUrl,
+                    role = m.Role, has_active_membership = m.HasActiveMembership,
+                    days_left = m.DaysLeft, end_date = m.EndDate
+                }).ToArray());
+            }
+
+            else if (path == "/manual-access" && req.HttpMethod == "POST")
+                await HandleManualAccess(req, res);
+
+            else if (path == "/reception" && req.HttpMethod == "GET")
+                await WriteHtml(res, ReceptionHtml);
+
             else if (path == "/proxy/reservations" && req.HttpMethod == "GET")
             {
                 // Proxy: el browser local pide reservaciones al bridge, el bridge las busca en el VPS.
@@ -460,6 +477,39 @@ public sealed class LocalServer : IDisposable
             }
         }
         finally { _captureLock.Release(); }
+    }
+
+    // ── Acceso manual (desde panel de recepción) ──────────────────────────
+    private async Task HandleManualAccess(HttpListenerRequest req, HttpListenerResponse res)
+    {
+        try
+        {
+            using var sr = new StreamReader(req.InputStream);
+            var body   = JsonSerializer.Deserialize<JsonElement>(await sr.ReadToEndAsync());
+            int userId = body.GetProperty("user_id").GetInt32();
+
+            var member  = _cache.GetMember(userId);
+            bool granted = member?.HasActiveMembership ?? false;
+            string status = granted ? "granted" : "denied";
+            string reason = granted ? ""
+                : (member == null ? "Socio no registrado" : "Membresía inactiva");
+
+            SetLastScan(userId, status, member, reason);
+
+            _ = Task.Run(async () =>
+            {
+                var (_, _, isOnline) = await _api.VerifyAsync(userId);
+                if (isOnline) MarkOnline();
+                else _cache.EnqueueScan(new PendingScan(userId, DateTime.UtcNow, status));
+            });
+
+            await WriteJson(res, new { ok = true, status, reason });
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex, "HandleManualAccess error");
+            await WriteJson(res, new { ok = false, msg = ex.Message }, 400);
+        }
     }
 
     // ── Helpers de respuesta HTTP ─────────────────────────────────────────
@@ -681,6 +731,247 @@ public sealed class LocalServer : IDisposable
         setInterval(poll,500);poll();
         setInterval(pollStatus,5000);pollStatus();
         try{document.documentElement.requestFullscreen();}catch(e){}
+        </script></body></html>
+        """;
+
+    // ── Panel de recepción (Monitor 1 — funciona 100 % offline) ──────────
+    private const string ReceptionHtml = """
+        <!DOCTYPE html><html lang="es"><head>
+        <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>HybridTraining · Recepción</title>
+        <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        html,body{height:100%;background:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;color:#e0e0e0}
+        /* ── Topbar ── */
+        #topbar{display:flex;align-items:center;gap:12px;padding:8px 18px;
+          background:#111;border-bottom:1px solid #1e1e1e;font-size:0.72rem;color:#555}
+        #topbar .dot{font-size:0.5rem;transition:color .5s}
+        #topbar .sep{color:#222}
+        #topbar .title{font-weight:700;font-size:0.85rem;color:#aaa;margin-right:auto}
+        /* ── Layout 2 columnas ── */
+        #wrap{display:flex;height:calc(100vh - 35px);gap:0}
+        /* ── Columna izquierda: último scan ── */
+        #left{flex:0 0 50%;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;
+          align-items:center;justify-content:center;padding:24px;gap:16px;overflow:hidden}
+        #scan-idle{text-align:center;color:#2a2a2a}
+        #scan-idle h2{font-size:1.8rem;font-weight:800;text-transform:uppercase;letter-spacing:3px}
+        #scan-idle p{margin-top:8px;font-size:0.9rem}
+        #scan-card{display:none;width:100%;border-radius:16px;padding:20px 24px;
+          background:linear-gradient(145deg,rgba(255,255,255,0.04),rgba(0,0,0,0.85));
+          border:2px solid #222}
+        @keyframes pop{from{opacity:0;transform:scale(.96)}to{opacity:1;transform:scale(1)}}
+        .pop{animation:pop .35s ease-out}
+        .sc-status{font-size:1.4rem;font-weight:900;text-transform:uppercase;
+          letter-spacing:3px;text-align:center}
+        .sc-reason{font-size:0.75rem;font-weight:700;text-transform:uppercase;
+          letter-spacing:2px;text-align:center;margin-top:2px}
+        .sc-ts{color:#555;font-size:0.78rem;text-align:center;margin-top:2px;margin-bottom:12px}
+        .sc-row{display:flex;align-items:center;gap:16px}
+        .sc-avatar{width:72px;height:72px;border-radius:50%;border:3px solid;object-fit:cover;flex-shrink:0}
+        .sc-init{width:72px;height:72px;border-radius:50%;border:3px solid;
+          display:flex;align-items:center;justify-content:center;font-size:1.8rem;
+          font-weight:700;flex-shrink:0}
+        .sc-name{font-size:1.1rem;font-weight:700}
+        .sc-role{color:#666;font-size:0.75rem;text-transform:uppercase;letter-spacing:2px;margin-top:2px}
+        .sc-badge{display:inline-block;padding:2px 12px;border-radius:12px;font-size:0.75rem;font-weight:700;margin-top:8px}
+        /* ── Columna derecha: búsqueda ── */
+        #right{flex:1;display:flex;flex-direction:column;padding:20px 20px 12px;gap:12px;overflow:hidden}
+        #right h3{font-size:0.8rem;font-weight:700;text-transform:uppercase;
+          letter-spacing:2px;color:#555;margin-bottom:2px}
+        #search-wrap{position:relative}
+        #q{width:100%;padding:10px 14px;border-radius:10px;border:1px solid #2a2a2a;
+          background:#111;color:#eee;font-size:0.95rem;outline:none;transition:border .2s}
+        #q:focus{border-color:#3a7bd5}
+        #results{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px}
+        .member-row{display:flex;align-items:center;gap:12px;background:#111;
+          border-radius:10px;padding:10px 14px;border:1px solid #1e1e1e;cursor:default}
+        .mr-init{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;
+          justify-content:center;font-size:1.1rem;font-weight:700;flex-shrink:0}
+        .mr-img{width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0}
+        .mr-info{flex:1;min-width:0}
+        .mr-name{font-weight:700;font-size:0.9rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .mr-sub{font-size:0.72rem;color:#666;margin-top:1px}
+        .mr-badge{font-size:0.68rem;font-weight:700;padding:2px 10px;border-radius:10px;white-space:nowrap}
+        .mr-btn{padding:7px 14px;border-radius:8px;border:none;font-size:0.78rem;
+          font-weight:700;cursor:pointer;transition:background .2s;white-space:nowrap}
+        .mr-btn:disabled{opacity:0.45;cursor:not-allowed}
+        #empty{text-align:center;color:#2a2a2a;padding:40px 0;font-size:0.85rem;display:none}
+        </style></head><body>
+        <!-- Topbar -->
+        <div id="topbar">
+          <span class="title">HybridTraining · Recepción</span>
+          <span class="dot" id="inet-dot" style="color:#333">●</span>
+          <span id="inet-txt">--</span>
+          <span class="sep">|</span>
+          <span id="sync-txt">--</span>
+          <span class="sep">|</span>
+          <span id="members-txt">-- socios</span>
+          <span class="sep">|</span>
+          <span id="queue-txt">--</span>
+        </div>
+        <!-- Layout -->
+        <div id="wrap">
+          <!-- Izquierda: último scan -->
+          <div id="left">
+            <div id="scan-idle">
+              <h2>Esperando escaneo…</h2>
+              <p>Aquí aparecerá el próximo socio</p>
+            </div>
+            <div id="scan-card"></div>
+          </div>
+          <!-- Derecha: búsqueda + acceso manual -->
+          <div id="right">
+            <h3>Búsqueda de socios</h3>
+            <div id="search-wrap">
+              <input id="q" type="search" placeholder="Nombre del socio…" autocomplete="off" />
+            </div>
+            <div id="results"></div>
+            <div id="empty">Sin resultados</div>
+          </div>
+        </div>
+        <script>
+        /* ── Utilidades ── */
+        function initials(n){return(n||'').split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase()||'?';}
+        function bgColor(n){var h=0;for(var i=0;i<(n||'').length;i++)h=(h*31+n.charCodeAt(i))%360;return'hsl('+h+',45%,28%)';}
+        function fmtTime(ts){try{return new Date(ts.replace(' ','T')+'Z').toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}catch(e){return ts||'';}}
+        /* ── Panel izquierdo: último scan ── */
+        var lastScanId=null;
+        function renderIdle(){
+          document.getElementById('scan-idle').style.display='block';
+          document.getElementById('scan-card').style.display='none';
+        }
+        function renderScan(d){
+          var acc=d.status==='granted'?'#00cc66':'#ff4444';
+          var u=d.user||{};
+          var granted=d.status==='granted';
+          /* Avatar */
+          var avatarHtml;
+          if(u.photo_url){
+            avatarHtml='<img class="sc-avatar" style="border-color:'+acc+'" src="'+u.photo_url+'" '+
+              'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'" alt="">'+
+              '<div class="sc-init" style="border-color:'+acc+';background:'+bgColor(u.name)+';display:none">'+initials(u.name)+'</div>';
+          }else{
+            avatarHtml='<div class="sc-init" style="border-color:'+acc+';background:'+bgColor(u.name)+'">'+initials(u.name)+'</div>';
+          }
+          /* Membresía */
+          var mbs=u.memberships||[];var mp=null;
+          for(var i=0;i<mbs.length;i++){if(mbs[i].is_active){mp=mbs[i];break;}}
+          var badgeHtml=mp?
+            '<span class="sc-badge" style="background:rgba(0,204,102,.15);color:#00cc66">ACTIVO</span>':
+            '<span class="sc-badge" style="background:rgba(255,68,68,.15);color:#ff4444">INACTIVO</span>';
+          /* Motivo rechazo */
+          var reasonHtml=(!granted&&d.reason)?'<div class="sc-reason" style="color:'+acc+'">'+d.reason+'</div>':'';
+          var card=document.getElementById('scan-card');
+          card.className='pop';
+          card.style.borderColor=acc;
+          card.style.boxShadow='0 6px 28px '+(granted?'rgba(0,204,102,0.15)':'rgba(255,68,68,0.15)');
+          card.innerHTML=
+            '<div class="sc-status" style="color:'+acc+'">'+(granted?'✓ ACCESO':'✗ DENEGADO')+'</div>'+
+            reasonHtml+
+            '<div class="sc-ts">'+fmtTime(d.scanned_at||'')+'</div>'+
+            '<div class="sc-row">'+avatarHtml+
+              '<div><div class="sc-name">'+(u.name||'Desconocido')+'</div>'+
+              '<div class="sc-role">'+(u.role||'socio')+'</div>'+
+              badgeHtml+'</div>'+
+            '</div>';
+          card.style.display='block';
+          document.getElementById('scan-idle').style.display='none';
+        }
+        function pollScan(){
+          var x=new XMLHttpRequest();x.open('GET','/recent-scan',true);x.timeout=800;
+          x.onload=function(){
+            try{var d=JSON.parse(x.responseText);if(d&&d.id){if(d.id!==lastScanId){lastScanId=d.id;renderScan(d);}
+            }else{renderIdle();}}catch(e){renderIdle();}
+          };
+          x.onerror=x.ontimeout=function(){renderIdle();};
+          x.send();
+        }
+        setInterval(pollScan,500);pollScan();
+        /* ── Topbar: status ── */
+        function pollStatus(){
+          var x=new XMLHttpRequest();x.open('GET','/status',true);x.timeout=1000;
+          x.onload=function(){
+            try{
+              var s=JSON.parse(x.responseText);
+              document.getElementById('inet-dot').style.color=s.online?'#00cc66':'#ff4444';
+              document.getElementById('inet-txt').textContent=s.online?'Internet':'Sin red';
+              document.getElementById('sync-txt').textContent=s.last_sync_at?('Sync '+s.last_sync_at):'Sin sync';
+              document.getElementById('members-txt').textContent=(s.members||0)+' socios';
+              var q=s.queue||0;
+              document.getElementById('queue-txt').textContent=q>0?('⏳ '+q+' pendiente'+(q===1?'':'s')):'Sincronizado';
+            }catch(e){}
+          };x.send();
+        }
+        setInterval(pollStatus,5000);pollStatus();
+        /* ── Búsqueda de socios ── */
+        var searchTimer=null;
+        document.getElementById('q').addEventListener('input',function(){
+          clearTimeout(searchTimer);
+          var v=this.value.trim();
+          if(v.length<1){document.getElementById('results').innerHTML='';document.getElementById('empty').style.display='none';return;}
+          searchTimer=setTimeout(function(){doSearch(v);},220);
+        });
+        function doSearch(q){
+          var x=new XMLHttpRequest();x.open('GET','/search?q='+encodeURIComponent(q),true);x.timeout=1500;
+          x.onload=function(){
+            try{renderResults(JSON.parse(x.responseText));}catch(e){}
+          };x.send();
+        }
+        function renderResults(arr){
+          var el=document.getElementById('results');
+          var empty=document.getElementById('empty');
+          el.innerHTML='';
+          if(!arr||arr.length===0){empty.style.display='block';return;}
+          empty.style.display='none';
+          arr.forEach(function(m){
+            var active=m.has_active_membership;
+            var acc=active?'#00cc66':'#ff4444';
+            var avatarHtml;
+            if(m.photo_url){
+              avatarHtml='<img class="mr-img" src="'+m.photo_url+'" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'" alt="">'+
+                '<div class="mr-init" style="background:'+bgColor(m.name)+';display:none">'+initials(m.name)+'</div>';
+            }else{
+              avatarHtml='<div class="mr-init" style="background:'+bgColor(m.name)+'">'+initials(m.name)+'</div>';
+            }
+            var daysHtml=active&&m.days_left>0?('<span style="color:#888;font-size:0.68rem">·</span> <span style="font-size:0.68rem;color:'+(m.days_left<=7?'#ff9900':'#888')+'">'+m.days_left+' días</span>'):'';
+            var btnBg=active?'rgba(0,204,102,0.15)':'rgba(255,68,68,0.12)';
+            var btnColor=active?'#00cc66':'#ff6666';
+            var row=document.createElement('div');
+            row.className='member-row';
+            row.innerHTML=avatarHtml+
+              '<div class="mr-info">'+
+                '<div class="mr-name">'+m.name+'</div>'+
+                '<div class="mr-sub">'+(m.role||'socio')+' '+daysHtml+'</div>'+
+              '</div>'+
+              '<span class="mr-badge" style="background:'+btnBg+';color:'+acc+'">'+
+                (active?'ACTIVO':'INACTIVO')+'</span>'+
+              '<button class="mr-btn" data-uid="'+m.id+'" '+
+                'style="background:'+btnBg+';color:'+btnColor+';border:1px solid '+acc+'40">'+
+                'Registrar acceso</button>';
+            row.querySelector('.mr-btn').addEventListener('click',function(){
+              var btn=this;btn.disabled=true;btn.textContent='…';
+              var uid=parseInt(btn.getAttribute('data-uid'));
+              var x2=new XMLHttpRequest();x2.open('POST','/manual-access',true);
+              x2.setRequestHeader('Content-Type','application/json');
+              x2.timeout=3000;
+              x2.onload=function(){
+                try{
+                  var r=JSON.parse(x2.responseText);
+                  btn.textContent=r.status==='granted'?'✓ Registrado':'✗ Denegado';
+                  btn.style.color=r.status==='granted'?'#00cc66':'#ff4444';
+                }catch(e){btn.textContent='Error';}
+                setTimeout(function(){
+                  btn.disabled=false;
+                  btn.textContent='Registrar acceso';
+                  btn.style.color=btnColor;
+                },2500);
+              };
+              x2.onerror=x2.ontimeout=function(){btn.textContent='Error';btn.disabled=false;};
+              x2.send(JSON.stringify({user_id:uid}));
+            });
+            el.appendChild(row);
+          });
+        }
         </script></body></html>
         """;
 
