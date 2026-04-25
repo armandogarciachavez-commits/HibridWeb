@@ -43,10 +43,10 @@ chromePath = "C:\Program Files\Google\Chrome\Application\chrome.exe"
 
 Dim browserCmd
 If CreateObject("Scripting.FileSystemObject").FileExists(edgePath) Then
-    ' Edge kiosko nativo (sin barra de dirección, pantalla completa)
-    browserCmd = """" & edgePath & """ --kiosk """ & BRIDGE_URL & """ --edge-kiosk-type=fullscreen --no-first-run --disable-translate"
+    ' Edge app mode: pantalla completa pero minimizable desde la barra de tareas
+    browserCmd = """" & edgePath & """ --app=" & BRIDGE_URL & " --start-fullscreen --no-first-run --disable-translate --disable-infobars"
 ElseIf CreateObject("Scripting.FileSystemObject").FileExists(chromePath) Then
-    ' Chrome app mode (ventana sin UI de browser)
+    ' Chrome app mode
     browserCmd = """" & chromePath & """ --app=" & BRIDGE_URL & " --start-fullscreen --disable-infobars --no-first-run"
 Else
     ' Fallback: abrir con el browser por defecto

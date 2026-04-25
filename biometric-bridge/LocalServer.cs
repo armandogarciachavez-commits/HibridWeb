@@ -594,7 +594,14 @@ public sealed class LocalServer : IDisposable
           background:rgba(0,0,0,0.55);border:1px solid #1c1c1c;border-radius:8px;
           padding:5px 12px;font-size:0.7rem;color:#444;user-select:none}
         #sb .dot{font-size:0.55rem;transition:color .5s}
+        /* ── Botón minimizar (esquina superior izquierda) ── */
+        #btn-min{position:fixed;top:10px;left:12px;background:rgba(0,0,0,0.4);
+          border:1px solid #1c1c1c;border-radius:7px;padding:4px 12px;
+          font-size:0.7rem;color:#333;cursor:pointer;user-select:none;
+          transition:color .2s,border-color .2s;z-index:999}
+        #btn-min:hover{color:#aaa;border-color:#444}
         </style></head><body>
+        <button id="btn-min" onclick="document.exitFullscreen&&document.exitFullscreen()" title="Minimizar">— Minimizar</button>
         <div id="idle">
           <h1>Bienvenido a HybridTraining</h1>
           <p>Por favor, coloque su huella en el lector</p>
