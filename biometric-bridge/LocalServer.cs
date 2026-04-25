@@ -30,6 +30,29 @@ public sealed class LocalServer : IDisposable
 
     private static long _scanIdCounter = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
 
+    // ── Estado de conectividad (para panel de status y logs) ──────────────
+    private volatile bool _online = false;
+    private DateTime _lastOnlineAt  = DateTime.MinValue;
+    private DateTime _lastSyncAt    = DateTime.MinValue;
+    private readonly DateTime _startedAt = DateTime.UtcNow;
+
+    private void MarkOnline()
+    {
+        _online      = true;
+        _lastOnlineAt = DateTime.UtcNow;
+    }
+
+    private bool IsOnline => _online && (DateTime.UtcNow - _lastOnlineAt).TotalMinutes < 5;
+
+    private string StatusMessage()
+    {
+        int q = _cache.QueueCount;
+        if (!IsOnline && q > 0)  return $"Sin internet — {q} acceso{(q==1?"":"s")} pendiente{(q==1?"":"s")}";
+        if (!IsOnline)            return "Sin internet — modo local activo";
+        if (q > 0)                return $"{q} acceso{(q==1?"":"s")} pendiente{(q==1?"":"s")} por sincronizar";
+        return "Listo";
+    }
+
     public LocalServer(FingerprintReader reader, SourceAFISMatcher matcher,
                        ApiClient api, LocalCache cache, IConfiguration cfg,
                        ILogger<LocalServer> log)
@@ -136,14 +159,15 @@ public sealed class LocalServer : IDisposable
                     var member   = _cache.GetMember(matchedId.Value);
                     bool granted = member?.HasActiveMembership ?? false;
                     string status = granted ? "granted" : "denied";
-                    SetLastScan(matchedId.Value, status, member);
+                    string reason = granted ? "" : (member == null ? "Socio no registrado" : "Membresía inactiva");
+                    SetLastScan(matchedId.Value, status, member, reason);
 
                     // 2. Registrar en API remota en background (no bloquea el loop)
                     _ = Task.Run(async () =>
                     {
                         var (_, _, isOnline) = await _api.VerifyAsync(matchedId.Value);
-                        if (!isOnline)
-                            _cache.EnqueueScan(new PendingScan(matchedId.Value, DateTime.UtcNow, status));
+                        if (isOnline)  MarkOnline();
+                        else           _cache.EnqueueScan(new PendingScan(matchedId.Value, DateTime.UtcNow, status));
                         _log.LogInformation("Acceso: {S} (online={O})", status.ToUpper(), isOnline);
                     });
 
@@ -186,6 +210,8 @@ public sealed class LocalServer : IDisposable
                     }
                     else
                     {
+                        MarkOnline();
+                        _lastSyncAt = DateTime.UtcNow;
                         _log.LogInformation("SyncLoop: {N} scans offline sincronizados.", pending.Count);
                     }
                 }
@@ -197,6 +223,7 @@ public sealed class LocalServer : IDisposable
                     var templates = await _api.GetTemplatesAsync();
                     if (templates.Count > 0)
                     {
+                        MarkOnline();
                         _matcher.ReloadCache(templates);
                         _cache.SaveTemplates(templates);
                         _log.LogInformation("SyncLoop: templates actualizados: {N}.", _matcher.CacheSize);
@@ -204,6 +231,8 @@ public sealed class LocalServer : IDisposable
                     var members = await _api.GetMembersAsync();
                     if (members.Count > 0)
                     {
+                        MarkOnline();
+                        _lastSyncAt = DateTime.UtcNow;
                         _cache.SaveMembers(members);
                         _log.LogInformation("SyncLoop: socios actualizados: {N}.", _cache.MemberCount);
                     }
@@ -217,7 +246,7 @@ public sealed class LocalServer : IDisposable
     }
 
     // ── Guarda el último scan en memoria (con formato para ScannerDisplay) ─
-    private void SetLastScan(int userId, string status, CachedMember? member)
+    private void SetLastScan(int userId, string status, CachedMember? member, string reason = "")
     {
         long scanId    = System.Threading.Interlocked.Increment(ref _scanIdCounter);
         var  scannedAt = DateTime.UtcNow;
@@ -243,6 +272,7 @@ public sealed class LocalServer : IDisposable
             id         = scanId,
             user_id    = userId,
             status,
+            reason,
             scanned_at = scannedAt.ToString("yyyy-MM-dd HH:mm:ss"),
             user       = userObj,
         });
@@ -288,10 +318,17 @@ public sealed class LocalServer : IDisposable
             if (path == "/status" && req.HttpMethod == "GET")
                 await WriteJson(res, new
                 {
-                    ready    = _reader.IsReady,
-                    capturing = Capturing,
-                    members  = _cache.MemberCount,
-                    queue    = _cache.QueueCount,
+                    ready          = _reader.IsReady,
+                    capturing      = Capturing,
+                    members        = _cache.MemberCount,
+                    templates      = _matcher.CacheSize,
+                    queue          = _cache.QueueCount,
+                    online         = IsOnline,
+                    last_sync_at   = _lastSyncAt == DateTime.MinValue
+                                        ? (string?)null
+                                        : _lastSyncAt.ToLocalTime().ToString("HH:mm"),
+                    uptime_seconds = (long)(DateTime.UtcNow - _startedAt).TotalSeconds,
+                    status_msg     = StatusMessage(),
                 });
 
             else if (path == "/recent-scan" && req.HttpMethod == "GET")
@@ -472,7 +509,8 @@ public sealed class LocalServer : IDisposable
         .fade{animation:fadeIn .4s ease-out}
         .hdr{text-align:center;padding-bottom:clamp(8px,1.5vh,16px);border-bottom:1px solid #222}
         .hdr h2{font-size:clamp(1.6rem,4vw,3.2rem);font-weight:900;text-transform:uppercase;line-height:1.1}
-        .hdr .ts{color:#666;font-size:clamp(0.8rem,1.4vw,1.1rem);margin-top:6px}
+        .hdr .reason{font-size:clamp(0.8rem,1.3vw,1rem);margin-top:4px;font-weight:600;text-transform:uppercase;letter-spacing:2px}
+        .hdr .ts{color:#666;font-size:clamp(0.8rem,1.4vw,1.1rem);margin-top:4px}
         .bdy{display:flex;gap:clamp(16px,3vw,36px);align-items:flex-start;flex:1;min-height:0}
         .lft{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:clamp(8px,1.5vh,14px)}
         .avatar{width:clamp(90px,13vh,160px);height:clamp(90px,13vh,160px);border-radius:50%;
@@ -495,12 +533,26 @@ public sealed class LocalServer : IDisposable
           border-radius:8px;border-left:4px solid}
         .rt{background:rgba(255,255,255,0.08);padding:4px 12px;border-radius:6px;
           font-size:clamp(0.75rem,1.2vw,0.95rem);font-weight:700;white-space:nowrap}
+        /* ── Barra de estado (esquina inferior derecha) ── */
+        #sb{position:fixed;bottom:10px;right:14px;display:flex;align-items:center;gap:10px;
+          background:rgba(0,0,0,0.55);border:1px solid #1c1c1c;border-radius:8px;
+          padding:5px 12px;font-size:0.7rem;color:#444;user-select:none}
+        #sb .dot{font-size:0.55rem;transition:color .5s}
         </style></head><body>
         <div id="idle">
           <h1>Bienvenido a HybridTraining</h1>
           <p>Por favor, coloque su huella en el lector</p>
         </div>
         <div id="card"></div>
+        <!-- Barra de estado: internet · última sync · cola pendiente -->
+        <div id="sb">
+          <span class="dot" id="inet-dot" style="color:#333">●</span>
+          <span id="inet-txt">--</span>
+          <span style="color:#1c1c1c">|</span>
+          <span id="sync-txt">--</span>
+          <span style="color:#1c1c1c">|</span>
+          <span id="msg-txt">--</span>
+        </div>
         <script>
         var lastId=null;
         function fmtTime(ts){
@@ -546,6 +598,8 @@ public sealed class LocalServer : IDisposable
           }else{
             resvHtml='<p style="color:#555;font-style:italic;font-size:clamp(0.75rem,1.2vw,0.95rem)">No hay clases separadas para hoy.</p>';
           }
+          /* Motivo del rechazo (solo si denegado) */
+          var reasonHtml=(!granted&&s.reason)?'<p class="reason" style="color:'+acc+'">'+s.reason+'</p>':'';
           var card=document.getElementById('card');
           card.className='fade';
           card.style.cssText='display:flex;flex-direction:column;width:80vw;max-height:80vh;'+
@@ -556,6 +610,7 @@ public sealed class LocalServer : IDisposable
             'box-shadow:0 8px 40px '+(granted?'rgba(0,204,102,0.18)':'rgba(255,68,68,0.18)')+';';
           card.innerHTML=
             '<div class="hdr"><h2 style="color:'+acc+'">'+(granted?'\u00a1BIENVENIDO, '+fname+'!':'ACCESO DENEGADO')+'</h2>'+
+            reasonHtml+
             '<p class="ts">'+(s.scanned_at?fmtTime(s.scanned_at):'')+' </p></div>'+
             '<div class="bdy">'+
               '<div class="lft">'+photoHtml+
@@ -570,17 +625,31 @@ public sealed class LocalServer : IDisposable
             '</div>';
           document.getElementById('idle').style.display='none';
         }
+        /* ── Polling de scan ── */
         function poll(){
-          var ctrl=new XMLHttpRequest();
-          ctrl.open('GET','/recent-scan',true);
-          ctrl.timeout=800;
-          ctrl.onload=function(){
-            try{var d=JSON.parse(ctrl.responseText);if(d&&d.id){render(d);}else{renderIdle();}}catch(e){renderIdle();}
+          var x=new XMLHttpRequest();x.open('GET','/recent-scan',true);x.timeout=800;
+          x.onload=function(){
+            try{var d=JSON.parse(x.responseText);if(d&&d.id){render(d);}else{renderIdle();}}catch(e){renderIdle();}
           };
-          ctrl.onerror=ctrl.ontimeout=function(){renderIdle();};
-          ctrl.send();
+          x.onerror=x.ontimeout=function(){renderIdle();};x.send();
+        }
+        /* ── Polling de status (barra inferior) ── */
+        function pollStatus(){
+          var x=new XMLHttpRequest();x.open('GET','/status',true);x.timeout=1000;
+          x.onload=function(){
+            try{
+              var s=JSON.parse(x.responseText);
+              var online=s.online;
+              document.getElementById('inet-dot').style.color=online?'#00cc66':'#ff4444';
+              document.getElementById('inet-txt').textContent=online?'Internet':'Sin red';
+              document.getElementById('sync-txt').textContent=s.last_sync_at?('Sync '+s.last_sync_at):'Sin sync';
+              document.getElementById('msg-txt').textContent=s.status_msg||'';
+            }catch(e){}
+          };
+          x.send();
         }
         setInterval(poll,500);poll();
+        setInterval(pollStatus,5000);pollStatus();
         try{document.documentElement.requestFullscreen();}catch(e){}
         </script></body></html>
         """;
