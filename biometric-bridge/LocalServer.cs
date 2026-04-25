@@ -448,10 +448,6 @@ public sealed class LocalServer : IDisposable
                 return;
             }
 
-            bool stale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
-            if (_matcher.CacheSize == 0 || stale)
-                await RefreshCacheAsync();
-
             var uid = _matcher.Match(png, _log);
             if (uid.HasValue)
             {
