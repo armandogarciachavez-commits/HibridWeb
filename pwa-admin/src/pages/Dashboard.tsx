@@ -30,10 +30,15 @@ const Dashboard = () => {
     };
     fetchUsers();
 
-    // Un scan es "fresco" si ocurrió en los últimos 30 segundos
+    // Un scan es "fresco" si ocurrió en los últimos 30 segundos.
+    // Normaliza a UTC: si no tiene 'Z' ni offset, el VPS devuelve hora UTC sin sufijo
+    // y el navegador lo interpretaría como hora local → edad negativa → siempre "fresco".
     const isFresh = (scannedAt: string) => {
-      const age = (Date.now() - new Date(scannedAt).getTime()) / 1000;
-      return age <= 30;
+      const utc = scannedAt.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(scannedAt)
+        ? scannedAt
+        : scannedAt.replace(' ', 'T') + 'Z';
+      const age = (Date.now() - new Date(utc).getTime()) / 1000;
+      return age >= 0 && age <= 30;
     };
 
     // Polling recent scans every 3 seconds
