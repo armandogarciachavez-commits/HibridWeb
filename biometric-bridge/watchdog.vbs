@@ -46,6 +46,8 @@ Sub KillAllInstances()
         "SELECT * FROM Win32_Process WHERE Name = '" & BRIDGE_EXE & "'")
     Dim proc
     For Each proc In colKill
+        On Error Resume Next
         proc.Terminate()
+        On Error GoTo 0
     Next
 End Sub
