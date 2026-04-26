@@ -627,6 +627,7 @@ public sealed class LocalServer : IDisposable
         </div>
         <script>
         var lastId=null;
+        function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
         function fmtTime(ts){
           return new Date(ts).toLocaleTimeString('es-MX',
             {timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
@@ -671,7 +672,7 @@ public sealed class LocalServer : IDisposable
             resvHtml='<p style="color:#555;font-style:italic;font-size:clamp(0.75rem,1.2vw,0.95rem)">No hay clases separadas para hoy.</p>';
           }
           /* Motivo del rechazo (solo si denegado) */
-          var reasonHtml=(!granted&&s.reason)?'<p class="reason" style="color:'+acc+'">'+s.reason+'</p>':'';
+          var reasonHtml=(!granted&&s.reason)?'<p class="reason" style="color:'+acc+'">'+esc(s.reason)+'</p>':'';
           var card=document.getElementById('card');
           card.className='fade';
           card.style.cssText='display:flex;flex-direction:column;width:80vw;max-height:80vh;'+
@@ -681,12 +682,12 @@ public sealed class LocalServer : IDisposable
             'background:linear-gradient(145deg,rgba(255,255,255,0.04),rgba(0,0,0,0.85));'+
             'box-shadow:0 8px 40px '+(granted?'rgba(0,204,102,0.18)':'rgba(255,68,68,0.18)')+';';
           card.innerHTML=
-            '<div class="hdr"><h2 style="color:'+acc+'">'+(granted?'\u00a1BIENVENIDO, '+fname+'!':'ACCESO DENEGADO')+'</h2>'+
+            '<div class="hdr"><h2 style="color:'+acc+'">'+(granted?'\u00a1BIENVENIDO, '+esc(fname)+'!':'ACCESO DENEGADO')+'</h2>'+
             reasonHtml+
             '<p class="ts">'+(s.scanned_at?fmtTime(s.scanned_at):'')+' </p></div>'+
             '<div class="bdy">'+
               '<div class="lft">'+photoHtml+
-                '<div><div class="uname">'+(u.name||'')+'</div><div class="urole">'+(u.role||'')+'</div></div>'+
+                '<div><div class="uname">'+esc(u.name||'')+'</div><div class="urole">'+esc(u.role||'')+'</div></div>'+
               '</div>'+
               '<div class="rgt">'+
                 '<div class="box"><div class="box-lbl">Membres\u00eda</div>'+
