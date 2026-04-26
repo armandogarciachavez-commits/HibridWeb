@@ -186,6 +186,6 @@ public sealed class LocalCache
     private void PersistQueue()   // llamar dentro de _queueLock
     {
         try { File.WriteAllText(QueuePath, JsonSerializer.Serialize(_queue, JsonOpts)); }
-        catch { /* best-effort */ }
+        catch (Exception ex) { _log.LogError(ex, "PersistQueue: no se pudo guardar la cola en disco ({N} scans en memoria).", _queue.Count); }
     }
 }
