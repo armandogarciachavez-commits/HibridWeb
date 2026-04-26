@@ -468,7 +468,16 @@ public sealed class LocalServer : IDisposable
             var uid = _matcher.Match(png, _log);
             if (uid.HasValue)
             {
-                var (ok, msg, _) = await _api.VerifyAsync(uid.Value);
+                var member  = _cache.GetMember(uid.Value);
+                bool granted = member?.HasActiveMembership ?? false;
+                string status = granted ? "granted" : "denied";
+                string reason = granted ? "" : (member == null ? "Socio no registrado" : "Membresía inactiva");
+                SetLastScan(uid.Value, status, member, reason);
+
+                var (ok, msg, isOnline) = await _api.VerifyAsync(uid.Value);
+                if (isOnline) MarkOnline();
+                else _cache.EnqueueScan(new PendingScan(uid.Value, DateTime.UtcNow, status));
+
                 await WriteJson(res, new { ok, msg }, ok ? 200 : 403);
             }
             else
