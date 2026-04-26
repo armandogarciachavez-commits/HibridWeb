@@ -125,6 +125,11 @@ public sealed class LocalCache
 
     public int MemberCount { get { lock (_membersLock) return _members.Count; } }
 
+    public List<CachedMember> GetAllMembers()
+    {
+        lock (_membersLock) { return [.. _members]; }
+    }
+
     public List<CachedMember> SearchMembers(string query)
     {
         if (string.IsNullOrWhiteSpace(query)) return [];

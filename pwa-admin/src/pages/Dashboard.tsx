@@ -12,12 +12,19 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await apiFetch('/admin/users');
+        const res = await apiFetch('/admin/users', { signal: AbortSignal.timeout(4000) });
         const data = await res.json();
-        setUsers(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error("Error fetching admin stats", error);
-      } finally {
+        if (Array.isArray(data) && data.length > 0) { setUsers(data); setLoading(false); return; }
+      } catch { /* VPS sin respuesta — intentar bridge local */ }
+
+      // Fallback offline: cache del bridge local
+      try {
+        const res = await fetch('http://localhost:7072/members', { signal: AbortSignal.timeout(800) });
+        if (res.ok) {
+          const data = await res.json();
+          setUsers(Array.isArray(data) ? data : []);
+        }
+      } catch { /* sin bridge tampoco */ } finally {
         setLoading(false);
       }
     };

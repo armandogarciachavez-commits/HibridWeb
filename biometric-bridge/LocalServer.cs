@@ -364,6 +364,23 @@ public sealed class LocalServer : IDisposable
                 }).ToArray());
             }
 
+            else if (path == "/members" && req.HttpMethod == "GET")
+            {
+                // Devuelve la lista completa de socios del cache local.
+                // Compatible con el formato que espera el Dashboard del panel admin.
+                // Usado como fallback offline cuando el VPS no responde.
+                var all = _cache.GetAllMembers();
+                await WriteJson(res, all.Select(m => new {
+                    id        = m.Id,
+                    name      = m.Name,
+                    photo_url = m.PhotoUrl,
+                    role      = m.Role,
+                    memberships = m.HasActiveMembership
+                        ? (object)new[] { new { is_active = true, end_date = m.EndDate ?? "" } }
+                        : (object)Array.Empty<object>(),
+                }).ToArray());
+            }
+
             else if (path == "/manual-access" && req.HttpMethod == "POST")
                 await HandleManualAccess(req, res);
 

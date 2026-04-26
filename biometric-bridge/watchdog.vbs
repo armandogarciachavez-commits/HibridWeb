@@ -1,10 +1,11 @@
 Option Explicit
 
 ' ── Configuración ─────────────────────────────────────────────────────────────
-Const BRIDGE_DIR  = "C:\HybridTraning\HibridWeb\biometric-bridge\publish"
-Const BRIDGE_EXE  = "HybridBiometricBridge.exe"
-Const CHECK_EVERY = 10000   ' ms entre cada comprobación (10 s)
-Const RESTART_WAIT = 25000  ' ms de espera tras reiniciar (deja inicializar DPFP)
+Const BRIDGE_DIR    = "C:\HybridTraning\HibridWeb\biometric-bridge\publish"
+Const BRIDGE_EXE    = "HybridBiometricBridge.exe"
+Const BRIDGE_STATUS = "http://localhost:7072/status"
+Const CHECK_EVERY   = 10000   ' ms entre cada comprobación (10 s)
+Const RESTART_WAIT  = 25000   ' ms de espera tras reiniciar (deja inicializar DPFP)
 
 ' ── Objetos ───────────────────────────────────────────────────────────────────
 Dim WshShell : Set WshShell = CreateObject("WScript.Shell")
@@ -35,10 +36,32 @@ Do While True
         KillAllInstances()
         WScript.Sleep 5000
     Else
-        ' Exactamente una instancia corriendo — todo bien
-        WScript.Sleep CHECK_EVERY
+        ' Exactamente una instancia — verificar que responde por HTTP.
+        ' Tras despertar de hibernación el proceso puede estar vivo pero
+        ' el HttpListener en estado inválido: matar y reiniciar en ese caso.
+        If Not BridgeResponds() Then
+            KillAllInstances()
+            WScript.Sleep 5000
+        Else
+            WScript.Sleep CHECK_EVERY
+        End If
     End If
 Loop
+
+' ── Función: verificar que el bridge responde por HTTP ────────────────────────
+Function BridgeResponds()
+    Dim objHTTP : Set objHTTP = CreateObject("WinHttp.WinHttpRequest.5.1")
+    On Error Resume Next
+    objHTTP.Open "GET", BRIDGE_STATUS, False
+    objHTTP.SetTimeouts 2000, 2000, 2000, 2000
+    objHTTP.Send
+    If Err.Number = 0 And objHTTP.Status = 200 Then
+        BridgeResponds = True
+    Else
+        BridgeResponds = False
+    End If
+    On Error GoTo 0
+End Function
 
 ' ── Función: terminar todas las instancias del bridge ─────────────────────────
 Sub KillAllInstances()
