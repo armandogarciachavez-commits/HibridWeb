@@ -421,7 +421,7 @@ const Users = () => {
                                const fileName = file.name.toLowerCase();
                                // Basic validation
                                if(!validTypes.includes(file.type) && !validExts.some(ext => fileName.endsWith(ext))) {
-                                   alert("⚠️ Formato no válido. Solo se permiten imágenes JPG, JPEG, PNG o HEIC de celular.");
+                                   addToast("Formato no válido. Solo se permiten imágenes JPG, JPEG, PNG o HEIC.", "error");
                                    e.target.value = '';
                                    return;
                                }
@@ -462,7 +462,7 @@ const Users = () => {
                                    }
                                };
                                img.onerror = () => {
-                                   alert("Error al procesar la imagen.");
+                                   addToast("Error al procesar la imagen.", "error");
                                };
                                
                                const reader = new FileReader();

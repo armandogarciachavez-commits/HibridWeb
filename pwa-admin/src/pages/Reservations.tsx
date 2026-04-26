@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { Clock, Users, ChevronLeft, ChevronRight, Plus, Settings, Trash, Calendar, List, BookOpen, RefreshCw, Dumbbell, Flame, Target, Zap, Activity, Edit2, X } from 'lucide-react';
+import { Clock, Users, ChevronLeft, ChevronRight, Plus, Settings, Trash, Calendar, List, BookOpen, RefreshCw, Edit2, X } from 'lucide-react';
+import { getClassIcon } from '../lib/classIcons';
 import { useToast } from '../components/ui/ToastContext';
 import Spinner from '../components/ui/Spinner';
 import ConfirmModal from '../components/ui/ConfirmModal';
@@ -112,7 +113,6 @@ const Reservations = () => {
     }
   };
 
-  // -- HANDLERS: CATALOG --
   // -- HANDLERS: CATALOG --
   const handleSaveCatalog = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -309,14 +309,6 @@ const Reservations = () => {
     return new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
   }
 
-  const getClassIcon = (name: string, color: string, size = 18) => {
-    const n = name.toUpperCase();
-    if (n.includes('STRENGTH')) return <Dumbbell size={size} color={color} />;
-    if (n.includes('UPPER BURN')) return <Flame size={size} color={color} />;
-    if (n.includes('TEST')) return <Target size={size} color={color} />;
-    if (n.includes('ATHLETE')) return <Zap size={size} color={color} />;
-    return <Activity size={size} color={color} />;
-  };
 
   // Agrupar reservas: opcionalmente filtrar por fecha seleccionada
   const visibleReservations = filterDate

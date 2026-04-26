@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Routes, Route, HashRouter, Navigate } from 'react-router-dom';
+import { Routes, Route, HashRouter, Navigate, useLocation } from 'react-router-dom';
 import { ToastProvider } from './components/ui/ToastContext';
 import Navigation from './components/Navigation';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -14,7 +14,6 @@ import Announcements from './pages/Announcements';
 import Accounting from './pages/Accounting';
 import Nutrition from './pages/Nutrition';
 import { apiFetch, isTokenValid } from './lib/api';
-import { useLocation } from 'react-router-dom';
 
 function AppContent({ handleLogout }: { handleLogout: () => void }) {
   const location = useLocation();

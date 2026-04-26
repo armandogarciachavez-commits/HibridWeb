@@ -1,20 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
-import { Dumbbell, Flame, Target, Zap, Activity } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { getClassIcon } from '../lib/classIcons';
 
 const ScannerDisplay = () => {
   const [recentScan, setRecentScan] = useState<any>(null);
   // Evita llamar a la API remota más de una vez por scan
   const lastScanIdRef = useRef<number | null>(null);
-
-  const getClassIcon = (name: string, color: string, size = 16) => {
-    const n = name.toUpperCase();
-    if (n.includes('STRENGTH')) return <Dumbbell size={size} color={color} />;
-    if (n.includes('UPPER BURN')) return <Flame size={size} color={color} />;
-    if (n.includes('TEST')) return <Target size={size} color={color} />;
-    if (n.includes('ATHLETE')) return <Zap size={size} color={color} />;
-    return <Activity size={size} color={color} />;
-  };
 
   const fmtTime = (ts: string) =>
     new Date(ts).toLocaleTimeString('es-MX', {

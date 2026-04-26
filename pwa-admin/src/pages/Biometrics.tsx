@@ -30,8 +30,8 @@ const Biometrics = () => {
       const res  = await apiFetch('/admin/users');
       const data = await res.json();
       setUsers(data);
-    } catch (err) {
-      console.error('Error al obtener usuarios:', err);
+    } catch {
+      // Sin red: el dropdown de socios quedará vacío
     }
   };
 
