@@ -140,7 +140,7 @@ const ScannerDisplay = () => {
             {/* Columna izquierda: foto + nombre */}
             <div style={{ flex: '0 0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'clamp(8px, 1.5vh, 14px)' }}>
               <img
-                src={recentScan.user.photo_url || recentScan.user.photo ||
+                src={recentScan.user.photo_url ||
                   `https://ui-avatars.com/api/?name=${encodeURIComponent(recentScan.user.name)}&background=random&color=fff&size=400`}
                 alt={recentScan.user.name}
                 style={{

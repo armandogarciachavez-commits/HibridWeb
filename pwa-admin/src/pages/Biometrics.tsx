@@ -14,7 +14,7 @@ const Biometrics = () => {
   const [status, setStatus]             = useState<'idle' | 'waiting' | 'success' | 'error'>('idle');
   const [statusMsg, setStatusMsg]       = useState('');
   const [enrollStep, setEnrollStep]     = useState(0);   // muestras ya recolectadas
-  const [enrollTotal]                   = useState(TOTAL_SAMPLES);
+  const enrollTotal                     = TOTAL_SAMPLES;
   const abortRef                        = useRef<AbortController | null>(null);
   const enrollingRef                    = useRef(false);
 
