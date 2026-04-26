@@ -17,7 +17,7 @@ const ScannerDisplay = () => {
   };
 
   const fmtTime = (ts: string) =>
-    new Date(ts.replace(' ', 'T') + 'Z').toLocaleTimeString('es-MX', {
+    new Date(ts).toLocaleTimeString('es-MX', {
       timeZone: 'America/Mexico_City',
       hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
     });

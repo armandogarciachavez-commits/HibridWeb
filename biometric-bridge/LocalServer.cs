@@ -273,7 +273,7 @@ public sealed class LocalServer : IDisposable
             user_id    = userId,
             status,
             reason,
-            scanned_at = scannedAt.ToString("yyyy-MM-dd HH:mm:ss"),
+            scanned_at = scannedAt.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ"),
             user       = userObj,
         });
 
@@ -619,7 +619,7 @@ public sealed class LocalServer : IDisposable
         <script>
         var lastId=null;
         function fmtTime(ts){
-          return new Date(ts.replace(' ','T')+'Z').toLocaleTimeString('es-MX',
+          return new Date(ts).toLocaleTimeString('es-MX',
             {timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
         }
         function initials(n){return(n||'').split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase()||'?';}
@@ -840,7 +840,7 @@ public sealed class LocalServer : IDisposable
         /* ── Utilidades ── */
         function initials(n){return(n||'').split(' ').slice(0,2).map(function(w){return w[0]||'';}).join('').toUpperCase()||'?';}
         function bgColor(n){var h=0;for(var i=0;i<(n||'').length;i++)h=(h*31+n.charCodeAt(i))%360;return'hsl('+h+',45%,28%)';}
-        function fmtTime(ts){try{return new Date(ts.replace(' ','T')+'Z').toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}catch(e){return ts||'';}}
+        function fmtTime(ts){try{return new Date(ts).toLocaleTimeString('es-MX',{timeZone:'America/Mexico_City',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}catch(e){return ts||'';}}
         /* ── Panel izquierdo: último scan ── */
         var lastScanId=null;
         function renderIdle(){
