@@ -30,6 +30,12 @@ const Dashboard = () => {
     };
     fetchUsers();
 
+    // Un scan es "fresco" si ocurrió en los últimos 30 segundos
+    const isFresh = (scannedAt: string) => {
+      const age = (Date.now() - new Date(scannedAt).getTime()) / 1000;
+      return age <= 30;
+    };
+
     // Polling recent scans every 3 seconds
     // Si el VPS no responde (sin internet) → fallback al bridge local
     const fetchRecentScan = async () => {
@@ -38,7 +44,8 @@ const Dashboard = () => {
           { signal: AbortSignal.timeout(2000) });
         if (res.ok) {
           const data = await res.json();
-          if (data && data.id) { setRecentScan(data); return; }
+          if (data && data.id && isFresh(data.scanned_at)) { setRecentScan(data); return; }
+          if (data && data.id && !isFresh(data.scanned_at)) { setRecentScan(null); return; }
         }
       } catch (e) { /* VPS sin respuesta — intentar bridge local */ }
 
