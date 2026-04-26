@@ -53,4 +53,18 @@ Else
     browserCmd = "explorer.exe """ & BRIDGE_URL & """"
 End If
 
+' Si el bridge nunca levantó, no abrir el browser (quedaría en blanco)
+If Not bridgeReady Then
+    WScript.Quit 1
+End If
+
+' Verificar que Edge no está ya corriendo con esta URL (evitar doble instancia)
+Dim objWMI2 : Set objWMI2 = GetObject("winmgmts:{impersonationLevel=impersonate}!\\.\root\cimv2")
+Dim colEdge : Set colEdge = objWMI2.ExecQuery( _
+    "SELECT * FROM Win32_Process WHERE Name = 'msedge.exe'")
+If colEdge.Count > 0 Then
+    ' Ya hay Edge abierto — no abrir otra instancia del kiosko
+    WScript.Quit 0
+End If
+
 WshShell.Run browserCmd, 0, False
