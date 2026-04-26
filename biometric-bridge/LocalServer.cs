@@ -118,6 +118,9 @@ public sealed class LocalServer : IDisposable
     // ── Scan loop continuo ────────────────────────────────────────────────
     // IMPORTANTE: este loop NO hace llamadas a la API. Solo captura, matchea
     // y muestra. Todo lo que involucre red está en SyncLoop.
+    private int _initFailCount = 0;
+    private const int MaxInitFails = 5; // ~150 s antes de auto-reinicio
+
     private async Task ScanLoop(CancellationToken ct)
     {
         _log.LogInformation("Modo escaneo continuo iniciado.");
@@ -127,15 +130,31 @@ public sealed class LocalServer : IDisposable
             {
                 if (!_reader.IsReady)
                 {
-                    _log.LogWarning("Lector no disponible. Intentando reinicializar...");
+                    _log.LogWarning("Lector no disponible. Intentando reinicializar ({N}/{M})...",
+                        _initFailCount + 1, MaxInitFails);
                     bool ok = _reader.Initialize();
                     if (!ok)
                     {
+                        _initFailCount++;
+                        if (_initFailCount >= MaxInitFails)
+                        {
+                            // El hilo STA de DPFP quedó corrupto (típico tras hibernación).
+                            // Salimos con código 1 — el watchdog reiniciará el proceso limpio.
+                            _log.LogError(
+                                "Lector no inicializa tras {N} intentos. Reiniciando proceso...",
+                                MaxInitFails);
+                            Environment.Exit(1);
+                        }
                         _log.LogWarning("Reinicialización fallida. Reintentando en 20 s...");
                         await Task.Delay(20_000, ct);
                     }
+                    else
+                    {
+                        _initFailCount = 0;
+                    }
                     continue;
                 }
+                _initFailCount = 0;
 
                 await _captureLock.WaitAsync(ct);
                 byte[]? probePng = null;
