@@ -12,6 +12,7 @@ use App\Http\Controllers\AccountingController;
 use App\Http\Controllers\AccountingConceptController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\NutritionController;
+use App\Http\Controllers\ProgressController;
 
 // ─── Rutas públicas ───────────────────────────────────────────────────────────
 Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1');
@@ -37,6 +38,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/nutrition/my',             [NutritionController::class, 'myAppointments']);
     Route::post('/nutrition/appointments',  [NutritionController::class, 'store']);
     Route::patch('/nutrition/appointments/{id}/cancel', [NutritionController::class, 'destroy']);
+
+    // Progreso — Socios
+    Route::get('/progress',         [ProgressController::class, 'index']);
+    Route::post('/progress',        [ProgressController::class, 'store']);
+    Route::delete('/progress/{id}', [ProgressController::class, 'destroy']);
 });
 
 // ─── Administrador (admin + superadmin) ───────────────────────────────────────
