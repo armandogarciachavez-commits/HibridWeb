@@ -293,22 +293,22 @@ document.addEventListener('DOMContentLoaded', () => {
       cell.appendChild(num);
 
       if (sessions.length) {
-        const dots = document.createElement('div');
-        dots.className = 'cal-dots';
+        const pills = document.createElement('div');
+        pills.className = 'cal-pills';
         sessions.slice(0, 3).forEach(s => {
-          const dot = document.createElement('span');
-          dot.className = 'cal-dot';
-          dot.style.background = s.color || '#00ff88';
-          dots.appendChild(dot);
+          const pill = document.createElement('span');
+          pill.className = 'cal-pill';
+          pill.textContent = s.name;
+          pill.style.borderLeftColor = s.color || '#00d4ff';
+          pills.appendChild(pill);
         });
         if (sessions.length > 3) {
           const more = document.createElement('span');
-          more.className = 'cal-dot';
-          more.style.cssText = 'background:transparent;color:var(--gray-3);font-size:.6rem;width:auto;height:auto;border-radius:0';
-          more.textContent = `+${sessions.length - 3}`;
-          dots.appendChild(more);
+          more.className = 'cal-pill cal-pill--more';
+          more.textContent = `+${sessions.length - 3} más`;
+          pills.appendChild(more);
         }
-        cell.appendChild(dots);
+        cell.appendChild(pills);
         cell.addEventListener('click', () => selectDay(dateStr, sessions));
       } else {
         cell.style.cursor = 'default';
