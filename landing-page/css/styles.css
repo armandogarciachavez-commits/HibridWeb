@@ -459,7 +459,7 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
 .class-card {
   flex: 0 0 calc(33.333% - 1rem);
   position: relative; border-radius: var(--radius);
-  overflow: hidden; aspect-ratio: 3/4;
+  overflow: hidden; aspect-ratio: 1/1;
   border: 1px solid rgba(255,255,255,.06);
   transition: transform var(--t), box-shadow var(--t);
 }
@@ -913,7 +913,7 @@ a.cinfo-val:hover { color: var(--cyan); }
 
 @media (max-width: 400px) {
   .hero-headline { font-size: 3rem; }
-  .classes-grid .class-card { aspect-ratio: 4/5; }
+  .classes-grid .class-card { aspect-ratio: 1/1; }
 }
 
 /* ── SCHEDULE SLOTS — clickable ── */
