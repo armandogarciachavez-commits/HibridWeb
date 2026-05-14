@@ -306,35 +306,35 @@
     </div>
     <div class="classes-grid">
 
-      <div class="class-card reveal">
+      <div class="class-card reveal" data-lightbox="images/strength.jpg">
         <div class="class-card-bg" style="background-image:url('images/strength.jpg')"></div>
         <div class="class-card-content">
           <a href="#contacto" class="cc-btn">Quiero Inscribirme <i class="fas fa-arrow-right"></i></a>
         </div>
       </div>
 
-      <div class="class-card reveal">
+      <div class="class-card reveal" data-lightbox="images/upper-burn.jpg">
         <div class="class-card-bg" style="background-image:url('images/upper-burn.jpg')"></div>
         <div class="class-card-content">
           <a href="#contacto" class="cc-btn">Quiero Inscribirme <i class="fas fa-arrow-right"></i></a>
         </div>
       </div>
 
-      <div class="class-card reveal">
+      <div class="class-card reveal" data-lightbox="images/test.jpg">
         <div class="class-card-bg" style="background-image:url('images/test.jpg')"></div>
         <div class="class-card-content">
           <a href="#contacto" class="cc-btn">Quiero Inscribirme <i class="fas fa-arrow-right"></i></a>
         </div>
       </div>
 
-      <div class="class-card reveal">
+      <div class="class-card reveal" data-lightbox="images/athlete.jpg">
         <div class="class-card-bg" style="background-image:url('images/athlete.jpg')"></div>
         <div class="class-card-content">
           <a href="#contacto" class="cc-btn">Quiero Inscribirme <i class="fas fa-arrow-right"></i></a>
         </div>
       </div>
 
-      <div class="class-card reveal">
+      <div class="class-card reveal" data-lightbox="images/hit.jpg">
         <div class="class-card-bg" style="background-image:url('images/hit.jpg')"></div>
         <div class="class-card-content">
           <a href="#contacto" class="cc-btn">Quiero Inscribirme <i class="fas fa-arrow-right"></i></a>
@@ -1008,5 +1008,46 @@
 
 <script src="js/main.js" defer></script>
 <script src="js/payment.js" defer></script>
+
+<!-- ═══════  LIGHTBOX  ═══════ -->
+<div id="lightbox" class="lightbox" role="dialog" aria-modal="true" aria-label="Imagen ampliada">
+  <button class="lightbox-close" id="lightboxClose" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+  <div class="lightbox-backdrop" id="lightboxBackdrop"></div>
+  <img class="lightbox-img" id="lightboxImg" src="" alt="Programa de entrenamiento">
+  <a href="#contacto" class="lightbox-cta" id="lightboxCta">Quiero Inscribirme <i class="fas fa-arrow-right"></i></a>
+</div>
+
+<script>
+(function(){
+  const lb       = document.getElementById('lightbox');
+  const lbImg    = document.getElementById('lightboxImg');
+  const lbClose  = document.getElementById('lightboxClose');
+  const lbBack   = document.getElementById('lightboxBackdrop');
+
+  function open(src){
+    lbImg.src = src;
+    lb.classList.add('lightbox--open');
+    document.body.style.overflow = 'hidden';
+  }
+  function close(){
+    lb.classList.remove('lightbox--open');
+    document.body.style.overflow = '';
+    setTimeout(() => { lbImg.src = ''; }, 300);
+  }
+
+  document.querySelectorAll('[data-lightbox]').forEach(card => {
+    card.style.cursor = 'pointer';
+    card.addEventListener('click', e => {
+      if(e.target.closest('.cc-btn')) return; // deja que el botón navegue normal
+      e.preventDefault();
+      open(card.dataset.lightbox);
+    });
+  });
+
+  lbClose.addEventListener('click', close);
+  lbBack.addEventListener('click', close);
+  document.addEventListener('keydown', e => { if(e.key === 'Escape') close(); });
+})();
+</script>
 </body>
 </html>

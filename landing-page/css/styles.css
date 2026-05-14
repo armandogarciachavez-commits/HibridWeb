@@ -1029,3 +1029,56 @@ a.cinfo-val:hover { color: var(--cyan); }
   .cal-class-card { flex-wrap: wrap; gap: .5rem; }
   .cal-class-time { min-width: auto; }
 }
+
+/* ── LIGHTBOX ─────────────────────────────────────────────────────────── */
+.lightbox {
+  position: fixed; inset: 0; z-index: 9999;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1.25rem;
+  padding: 1.5rem;
+  opacity: 0; visibility: hidden;
+  transition: opacity .3s ease, visibility .3s ease;
+}
+.lightbox--open { opacity: 1; visibility: visible; }
+
+.lightbox-backdrop {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.88);
+  backdrop-filter: blur(6px);
+}
+.lightbox-img {
+  position: relative; z-index: 1;
+  max-width: min(90vw, 600px);
+  max-height: 80vh;
+  width: auto; height: auto;
+  border-radius: 16px;
+  box-shadow: 0 32px 80px rgba(0,0,0,.7);
+  transform: scale(.92);
+  transition: transform .35s cubic-bezier(.22,1,.36,1);
+  object-fit: contain;
+}
+.lightbox--open .lightbox-img { transform: scale(1); }
+
+.lightbox-close {
+  position: absolute; top: 1.25rem; right: 1.25rem; z-index: 2;
+  width: 44px; height: 44px; border-radius: 50%;
+  background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.2);
+  color: #fff; font-size: 1.1rem; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background var(--t);
+}
+.lightbox-close:hover { background: rgba(255,255,255,.25); }
+
+.lightbox-cta {
+  position: relative; z-index: 1;
+  display: inline-flex; align-items: center; gap: .5rem;
+  padding: .7rem 1.8rem; border-radius: 2rem;
+  background: var(--cyan); color: #000;
+  font-family: var(--font-h); font-size: .85rem; letter-spacing: .1em;
+  text-transform: uppercase; text-decoration: none; font-weight: 700;
+  transition: transform var(--t), box-shadow var(--t);
+  transform: translateY(10px); opacity: 0;
+  transition: opacity .3s ease .15s, transform .3s ease .15s;
+}
+.lightbox--open .lightbox-cta { opacity: 1; transform: translateY(0); }
+.lightbox-cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,212,255,.4); }
