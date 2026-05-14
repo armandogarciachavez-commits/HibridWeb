@@ -193,7 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
    DYNAMIC CALENDAR — Horarios del mes
 ══════════════════════════════════════ */
 (function () {
-  const API_BASE   = 'https://api.alfahybridtraning.com/api/classes/month';
+  // Mismo endpoint que usa el admin (versión pública, sin /admin/ prefix)
+  const API_BASE   = 'https://api.alfahybridtraning.com/api/calendar/sessions';
   // Week starts on Monday (grid header: LUN MAR MIÉ JUE VIE SÁB DOM)
   const DAYS_ES    = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   const MONTHS_ES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
@@ -233,10 +234,27 @@ document.addEventListener('DOMContentLoaded', () => {
     return res.json();
   }
 
+  /* ── normaliza sesión: acepta respuesta plana o anidada gym_class ── */
+  function normalizeSession(s) {
+    // Admin devuelve { gym_class: { name, color }, ... }
+    // Endpoint público puede devolver { name, color, ... } plano
+    return {
+      date:             (s.date || '').split('T')[0],
+      name:             s.name  || s.gym_class?.name  || 'Clase',
+      color:            s.color || s.gym_class?.color || '#00d4ff',
+      start_time:       (s.start_time || '').substring(0, 5),
+      end_time:         (s.end_time   || '').substring(0, 5),
+      instructor:       s.instructor  || 'Por asignar',
+      capacity:         s.capacity    || 0,
+      current_bookings: s.current_bookings ?? s.reservations_count ?? 0,
+    };
+  }
+
   /* ── build a map: dateStr → [sessions] ── */
   function buildDayMap(sessions) {
     const map = {};
-    sessions.forEach(s => {
+    sessions.forEach(raw => {
+      const s = normalizeSession(raw);
       if (!map[s.date]) map[s.date] = [];
       map[s.date].push(s);
     });
