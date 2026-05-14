@@ -464,14 +464,14 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
   transition: transform var(--t), box-shadow var(--t);
 }
 .class-card:hover { transform: translateY(-8px); box-shadow: 0 24px 60px rgba(0,0,0,.6); }
-.class-card-bg { position: absolute; inset: 0; transition: transform .6s ease; }
+.class-card-bg { position: absolute; inset: 0; transition: transform .6s ease; background-size: cover; background-position: center; }
 .class-card:hover .class-card-bg { transform: scale(1.04); }
 .class-card::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.9) 35%, rgba(0,0,0,.3) 70%, transparent 100%);
+  background: linear-gradient(to top, rgba(0,0,0,.92) 35%, rgba(0,0,0,.55) 65%, rgba(0,0,0,.2) 100%);
   transition: var(--t);
 }
-.class-card:hover::after { background: linear-gradient(to top, rgba(0,0,0,.92) 40%, rgba(0,0,0,.4) 80%, rgba(0,212,255,.04) 100%); }
+.class-card:hover::after { background: linear-gradient(to top, rgba(0,0,0,.95) 40%, rgba(0,0,0,.6) 75%, rgba(0,212,255,.06) 100%); }
 .class-card-content {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 1.5rem; z-index: 1;
