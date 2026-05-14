@@ -16,7 +16,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="css/styles.css">
-  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
   <!-- Schema Markup: LocalBusiness + GymFacility -->
   <script type="application/ld+json">
@@ -744,9 +743,14 @@
             <label for="mensaje">Mensaje *</label>
             <textarea id="mensaje" name="mensaje" rows="4" placeholder="Escribe tu mensaje aquí..." required></textarea>
           </div>
-          <div class="form-group recaptcha-wrap">
-            <div class="g-recaptcha" data-sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI" data-theme="dark"></div>
-            <small>* Reemplaza la clave reCAPTCHA en <a href="https://www.google.com/recaptcha/admin" target="_blank">console.google.com</a></small>
+          <div class="form-group challenge-wrap">
+            <label for="challengeAnswer">Verificación <span class="challenge-badge">Anti-spam</span></label>
+            <div class="challenge-row">
+              <span class="challenge-question" id="challengeQuestion"></span>
+              <span class="challenge-equals">=</span>
+              <input type="number" id="challengeAnswer" name="challengeAnswer"
+                     placeholder="?" autocomplete="off" required min="0" max="99">
+            </div>
           </div>
           <button type="submit" class="btn-primary-solid form-submit-btn" id="formSubmitBtn">
             <span>ENVIAR MENSAJE</span> <i class="fas fa-paper-plane"></i>

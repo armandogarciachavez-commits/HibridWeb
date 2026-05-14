@@ -135,44 +135,70 @@ const formSuccess   = document.getElementById('formSuccess');
 const formError     = document.getElementById('formError');
 const formSubmitBtn = document.getElementById('formSubmitBtn');
 
+/* ── Desafío matemático anti-spam ── */
+let _challengeAnswer = 0;
+
+function generateChallenge() {
+  const ops = ['+', '-', '×'];
+  const op  = ops[Math.floor(Math.random() * ops.length)];
+  let a, b, result;
+  if (op === '+') {
+    a = Math.floor(Math.random() * 15) + 1;
+    b = Math.floor(Math.random() * 15) + 1;
+    result = a + b;
+  } else if (op === '-') {
+    a = Math.floor(Math.random() * 15) + 5;
+    b = Math.floor(Math.random() * a) + 1;
+    result = a - b;
+  } else {
+    a = Math.floor(Math.random() * 9) + 2;
+    b = Math.floor(Math.random() * 5) + 2;
+    result = a * b;
+  }
+  _challengeAnswer = result;
+  const el = document.getElementById('challengeQuestion');
+  if (el) el.textContent = `¿Cuánto es ${a} ${op} ${b}?`;
+  const inp = document.getElementById('challengeAnswer');
+  if (inp) inp.value = '';
+}
+
+if (document.getElementById('challengeQuestion')) generateChallenge();
+
 if (contactForm) {
   contactForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     formSuccess.style.display = 'none';
     formError.style.display   = 'none';
 
-    // Basic validation
+    // Validación básica
     const nombre  = document.getElementById('nombre').value.trim();
     const email   = document.getElementById('email').value.trim();
     const mensaje = document.getElementById('mensaje').value.trim();
     if (!nombre || !email || !mensaje) {
+      formError.innerHTML = '<i class="fas fa-exclamation-circle"></i> Por favor completa todos los campos requeridos.';
       formError.style.display = 'flex';
       return;
     }
 
-    // Check reCAPTCHA (if loaded)
-    if (typeof grecaptcha !== 'undefined') {
-      const recaptchaResponse = grecaptcha.getResponse();
-      if (!recaptchaResponse) {
-        formError.textContent = '';
-        formError.innerHTML = '<i class="fas fa-exclamation-circle"></i> Por favor completa el reCAPTCHA.';
-        formError.style.display = 'flex';
-        return;
-      }
+    // Validar desafío
+    const userAnswer = parseInt(document.getElementById('challengeAnswer').value, 10);
+    if (isNaN(userAnswer) || userAnswer !== _challengeAnswer) {
+      formError.innerHTML = '<i class="fas fa-exclamation-circle"></i> Respuesta incorrecta. Intenta de nuevo.';
+      formError.style.display = 'flex';
+      generateChallenge();
+      return;
     }
 
-    // Simulate sending (replace with real fetch to your backend)
     formSubmitBtn.disabled = true;
     formSubmitBtn.querySelector('span').textContent = 'Enviando...';
 
     try {
-      // Replace this block with a real API call, e.g.:
       // await fetch('/api/contact', { method:'POST', body: new FormData(contactForm) })
-      await new Promise(r => setTimeout(r, 1200)); // simulated delay
+      await new Promise(r => setTimeout(r, 1200));
 
       formSuccess.style.display = 'flex';
       contactForm.reset();
-      if (typeof grecaptcha !== 'undefined') grecaptcha.reset();
+      generateChallenge();
     } catch {
       formError.innerHTML = '<i class="fas fa-exclamation-circle"></i> Error al enviar. Intenta de nuevo.';
       formError.style.display = 'flex';
