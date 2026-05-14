@@ -193,8 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
    DYNAMIC CALENDAR — Horarios del mes
 ══════════════════════════════════════ */
 (function () {
-  // Mismo endpoint que usa el admin (versión pública, sin /admin/ prefix)
-  const API_BASE   = 'https://api.alfahybridtraning.com/api/calendar/sessions';
+  // Endpoint público que devuelve las sesiones del mes (mismo origen que el admin)
+  const API_BASE   = 'https://api.alfahybridtraning.com/api/classes/month';
   // Week starts on Monday (grid header: LUN MAR MIÉ JUE VIE SÁB DOM)
   const DAYS_ES    = ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'];
   const MONTHS_ES  = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
