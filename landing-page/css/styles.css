@@ -464,23 +464,17 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
   transition: transform var(--t), box-shadow var(--t);
 }
 .class-card:hover { transform: translateY(-8px); box-shadow: 0 24px 60px rgba(0,0,0,.6); }
-.class-card-bg { position: absolute; inset: 0; transition: transform .6s ease; background-size: cover; background-position: center; }
-.class-card:hover .class-card-bg { transform: scale(1.04); }
+.class-card-bg { position: absolute; inset: 0; transition: transform .7s ease; background-size: cover; background-position: center top; }
+.class-card:hover .class-card-bg { transform: scale(1.06); }
 .class-card::after {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,.92) 35%, rgba(0,0,0,.55) 65%, rgba(0,0,0,.2) 100%);
+  background: linear-gradient(to top, rgba(0,0,0,.97) 0%, rgba(0,0,0,.9) 35%, rgba(0,0,0,.25) 65%, rgba(0,0,0,.05) 100%);
   transition: var(--t);
 }
-.class-card:hover::after { background: linear-gradient(to top, rgba(0,0,0,.95) 40%, rgba(0,0,0,.6) 75%, rgba(0,212,255,.06) 100%); }
+.class-card:hover::after { background: linear-gradient(to top, rgba(0,0,0,.98) 0%, rgba(0,0,0,.92) 38%, rgba(0,0,0,.2) 65%, rgba(0,0,0,.02) 100%); }
 .class-card-content {
   position: absolute; bottom: 0; left: 0; right: 0;
   padding: 1.5rem; z-index: 1;
-}
-.cc-icon {
-  width: 44px; height: 44px; border-radius: var(--radius-s);
-  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.1rem; color: var(--white); margin-bottom: .75rem;
 }
 .cc-tag {
   font-family: var(--font-h); font-size: .82rem; letter-spacing: .14em;
@@ -490,14 +484,21 @@ button { cursor: pointer; font-family: inherit; border: none; background: none; 
   font-family: var(--font-h); font-size: 1.6rem; letter-spacing: .05em;
   color: var(--white); line-height: 1; margin-bottom: .5rem; text-transform: uppercase;
 }
-.cc-desc { font-size: .85rem; color: var(--gray-2); line-height: 1.55; margin-bottom: .75rem; }
-.cc-list { display: flex; flex-direction: column; gap: .3rem; }
-.cc-list li { font-size: .82rem; color: var(--gray-2); display: flex; align-items: center; gap: .4rem; }
-.cc-list li i { color: var(--card-color, var(--cyan)); font-size: .75rem; }
+.cc-desc { font-size: .82rem; color: rgba(255,255,255,.7); line-height: 1.5; margin-bottom: .9rem; }
+.cc-btn {
+  display: inline-flex; align-items: center; gap: .45rem;
+  padding: .55rem 1.2rem; border-radius: 2rem;
+  border: 1.5px solid var(--btn-color, var(--cyan));
+  color: var(--btn-color, var(--cyan));
+  font-family: var(--font-h); font-size: .75rem; letter-spacing: .1em;
+  text-transform: uppercase; text-decoration: none;
+  transition: background var(--t), color var(--t), transform var(--t);
+}
+.cc-btn:hover { background: var(--btn-color, var(--cyan)); color: #000; transform: translateX(3px); }
 .class-card-number {
   position: absolute; top: 1rem; right: 1rem;
   font-family: var(--font-h); font-size: 3.5rem; letter-spacing: .06em;
-  color: rgba(255,255,255,.05); line-height: 1; pointer-events: none; z-index: 1;
+  color: rgba(255,255,255,.12); line-height: 1; pointer-events: none; z-index: 1;
 }
 
 /* ── SCHEDULE ── */
