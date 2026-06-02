@@ -12,12 +12,15 @@ class AdminController extends Controller
     public function indexUsers()
     {
         // Solo socios (excluir admins y superadmins)
+        // NOTA: en 'fingerprints' excluimos 'template_data' (longText con base64 del U.are.U 4500)
+        //       porque esta pantalla solo necesita conocer el conteo de huellas por socio.
+        //       El BiometricController carga template_data por su cuenta cuando lo necesita.
         $users = User::with([
             'memberships' => function ($q) {
                 $q->orderBy('created_at', 'desc');
             },
             'memberships.createdBy:id,name,username',
-            'fingerprints',
+            'fingerprints:id,user_id,finger_index,is_active',
             'createdBy:id,name,username',
         ])->where('role', 'socio')->get();
 

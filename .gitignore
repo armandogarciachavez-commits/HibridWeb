@@ -30,3 +30,4 @@ build/
 # Configuración local del bridge (contiene tokens reales)
 biometric-bridge/appsettings.json
 biometric-bridge/publish/appsettings.json
+backend/app/Http/Controllers/AdminController.php.backup-pre-fingerprint-fix
