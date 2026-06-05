@@ -31,3 +31,10 @@ build/
 biometric-bridge/appsettings.json
 biometric-bridge/publish/appsettings.json
 backend/app/Http/Controllers/AdminController.php.backup-pre-fingerprint-fix
+
+# Logs de PHP-FPM / Apache (autogenerados en producción)
+error_log
+**/error_log
+
+# .htaccess autogenerados por cPanel en dist/ de PWAs
+pwa-*/dist/.htaccess
