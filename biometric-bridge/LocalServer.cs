@@ -95,7 +95,7 @@ public sealed class LocalServer : IDisposable
             {
                 await Task.Delay(3_000);   // pequeña pausa para que el sistema esté listo
 
-                var templates = await _api.GetTemplatesAsync();
+                var templates = await _api.GetTemplatesPaginatedAsync();
                 if (templates.Count > 0)
                 {
                     _matcher.ReloadCache(templates);
@@ -239,7 +239,7 @@ public sealed class LocalServer : IDisposable
                 bool stale = (DateTime.UtcNow - _lastCacheReload) >= CacheRefreshInterval;
                 if (stale || _matcher.CacheSize == 0)
                 {
-                    var templates = await _api.GetTemplatesAsync();
+                    var templates = await _api.GetTemplatesPaginatedAsync();
                     if (templates.Count > 0)
                     {
                         MarkOnline();

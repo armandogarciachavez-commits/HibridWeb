@@ -48,7 +48,9 @@ public sealed class ApiClient
         }
     }
 
-    // ── Obtener todos los templates enrolados ─────────────────────────────
+    // ── Obtener todos los templates enrolados (LEGACY, monolítico) ────────
+    // Mantenido para compatibilidad. Prefiere GetTemplatesPaginatedAsync,
+    // que trocea la respuesta y evita timeouts en el payload de ~60 MB.
     public async Task<List<(int UserId, string TemplateBase64)>> GetTemplatesAsync()
     {
         try
@@ -70,6 +72,68 @@ public sealed class ApiClient
         catch (Exception ex)
         {
             _log.LogError(ex, "Error al obtener templates");
+            return [];
+        }
+    }
+
+    // ── Obtener todos los templates enrolados (paginado) ──────────────────
+    // Descarga en páginas de per_page (default 25) para mantener cada respuesta
+    // pequeña (~5 MB) y bajo cualquier timeout. Si falla en alguna página,
+    // devuelve lista vacía → el caller NO reemplaza la cache anterior.
+    public async Task<List<(int UserId, string TemplateBase64)>> GetTemplatesPaginatedAsync(
+        int perPage = 25)
+    {
+        var result   = new List<(int, string)>();
+        int page     = 1;
+        int lastPage = 1;
+        var start    = DateTime.UtcNow;
+
+        try
+        {
+            while (page <= lastPage)
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var url = $"{_base}/api/biometric/templates/page?page={page}&per_page={perPage}";
+                var res = await _http.GetAsync(url, cts.Token);
+
+                if (!res.IsSuccessStatusCode)
+                {
+                    _log.LogWarning(
+                        "GetTemplatesPaginatedAsync: pág {P} HTTP {S} — abortando sync sin reemplazar cache.",
+                        page, (int)res.StatusCode);
+                    return [];
+                }
+
+                var body = await res.Content.ReadFromJsonAsync<JsonElement>(cts.Token);
+                var meta = body.GetProperty("meta");
+                lastPage = meta.GetProperty("last_page").GetInt32();
+
+                foreach (var item in body.GetProperty("data").EnumerateArray())
+                {
+                    int    uid  = item.GetProperty("user_id").GetInt32();
+                    string tmpl = item.GetProperty("template_data").GetString() ?? "";
+                    if (!string.IsNullOrEmpty(tmpl))
+                        result.Add((uid, tmpl));
+                }
+
+                _log.LogInformation(
+                    "GetTemplatesPaginatedAsync: pág {P}/{L}, acumulados {N}.",
+                    page, lastPage, result.Count);
+
+                page++;
+            }
+
+            var elapsed = (DateTime.UtcNow - start).TotalSeconds;
+            _log.LogInformation(
+                "GetTemplatesPaginatedAsync completo: {N} templates en {P} pág, {S:F1}s.",
+                result.Count, page - 1, elapsed);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _log.LogError(ex,
+                "GetTemplatesPaginatedAsync: excepción en pág {P} — abortando sync sin reemplazar cache.",
+                page);
             return [];
         }
     }
