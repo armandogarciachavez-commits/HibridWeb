@@ -85,6 +85,37 @@ class BiometricController extends Controller
     }
 
     /**
+     * Paginated version of getTemplates.
+     * Bridge C# consumes chunks of ~50 templates to avoid the 58 MB monolithic payload
+     * that was causing timeouts and OOM.
+     *
+     * Query params: page (default 1), per_page (default 50, max 200).
+     * Response: { data: [...], meta: { current_page, per_page, total, last_page } }
+     */
+    public function getTemplatesPaginated(Request $request)
+    {
+        $perPage = min(max((int) $request->query('per_page', 50), 1), 200);
+        $page    = max((int) $request->query('page', 1), 1);
+
+        $query = \App\Models\Fingerprint::where('is_active', true)
+            ->select('user_id', 'template_data', 'finger_index')
+            ->orderBy('id');
+
+        $total = $query->count();
+        $items = $query->forPage($page, $perPage)->get();
+
+        return response()->json([
+            'data' => $items,
+            'meta' => [
+                'current_page' => $page,
+                'per_page'     => $perPage,
+                'total'        => $total,
+                'last_page'    => (int) ceil($total / max($perPage, 1)),
+            ],
+        ]);
+    }
+
+    /**
      * Returns all active members with minimal data for the bridge's local cache.
      * Called on startup and periodic refresh by the biometric bridge service.
      */
